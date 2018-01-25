@@ -1,0 +1,10 @@
+# Stack
+.stack-work
+
+# Cabal
+dist
+.cabal-sandbox
+cabal.sandbox.config
+
+# Profiling
+*.tix

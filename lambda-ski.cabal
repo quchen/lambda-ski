@@ -1,0 +1,46 @@
+name:                lambda-ski
+version:             0
+synopsis:            Quchen's Stack template
+description:         See README.md
+homepage:            https://github.com/quchen/lambda-ski#readme
+license:             BSD3
+license-file:        LICENSE.md
+author:              David »quchen« Luposchainsky <dluposchainsky+lambda-ski (λ) gmail>
+maintainer:          David »quchen« Luposchainsky <dluposchainsky+lambda-ski (λ) gmail>
+copyright:           David »quchen« Luposchainsky <dluposchainsky+lambda-ski (λ) gmail>
+category:            Web
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+    build-depends:
+          base >= 4.7 && < 5
+        , containers
+    hs-source-dirs:      src
+    exposed-modules:     Lib
+    default-language:    Haskell2010
+    ghc-options:         -Wall
+
+executable lambda-ski-exe
+    build-depends:
+          base
+        , lambda-ski
+    hs-source-dirs:      app
+    main-is:             Main.hs
+    ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
+    default-language:    Haskell2010
+
+test-suite lambda-ski-test
+    build-depends:
+          base
+        , lambda-ski
+    ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
+    type:                exitcode-stdio-1.0
+    hs-source-dirs:      test
+    main-is:             Test.hs
+    default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/quchen/lambda-ski
