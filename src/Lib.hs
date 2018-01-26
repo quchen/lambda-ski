@@ -1,20 +1,34 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
+
 module Lib where
 
+
+
+import           Control.Applicative
+import           Control.Monad
+import           Data.Char
 import           Data.Coerce
-import qualified Data.List      as L
+import           Data.Foldable
+import qualified Data.List            as L
 import           Data.Semigroup
-import           Data.Set       (Set)
-import qualified Data.Set       as S
+import           Data.Set             (Set)
+import qualified Data.Set             as S
 import           Data.String
-import           Data.Text      (Text)
-import qualified Data.Text      as T
+import           Data.Text            (Text)
+import qualified Data.Text            as T
+import           Text.Megaparsec      ((<?>))
+import qualified Text.Megaparsec      as P
+import qualified Text.Megaparsec.Char as P
+import           Text.Megaparsec.Text (Parser)
+import qualified Text.Megaparsec.Text as P
+
+
 
 someFunc :: IO ()
 someFunc = putStrLn "someFunc"
-
 
 newtype Var = Var Text deriving (Eq, Ord)
 instance Show Var where show (Var x) = T.unpack x
@@ -22,16 +36,16 @@ instance IsString Var where fromString = (coerce :: Text -> Var) . fromString
 
 data LExpr = LVar Var | LApp LExpr LExpr | LAbs Var LExpr deriving (Eq, Ord, Show)
 
-prettyLambda :: LExpr -> String
-prettyLambda = \case
-    LVar x   -> show x
-    LApp f x -> "(" ++ prettyLambda f ++ " " ++ prettyLambda x ++ ")"
-    LAbs x e -> "(λ" ++ show x ++ ". " ++ prettyLambda e ++ ")"
+-- prettyLambda :: LExpr -> String
+-- prettyLambda = \case
+--     LVar x   -> show x
+--     LApp f x -> "(" ++ prettyLambda f ++ " " ++ prettyLambda x ++ ")"
+--     LAbs x e -> "(λ" ++ show x ++ ". " ++ prettyLambda e ++ ")"
 
 data ParensNecessary = Parens | NoParens
 
-prettyLambda' :: LExpr -> String
-prettyLambda' = go NoParens
+prettyLambda :: LExpr -> String
+prettyLambda = go NoParens
   where
     go _ (LVar x) = show x
     go Parens x = "(" ++ go NoParens x ++ ")"
@@ -186,3 +200,70 @@ testConversion term = do
     putStrLn ("Convert " ++ prettyLambda term)
     putStr "Result: "
     (putStrLn . prettySki . lambdaToSki) term
+
+parseLambda :: Text -> LExpr
+parseLambda input = case P.parse lExprP ("λ expression" :: String) input of
+    Left err -> error (show err)
+    Right r -> r
+
+lExprP :: Parser LExpr
+lExprP = lAbsP <|> lVarAppP
+  where
+    lAbsP, lAppP, lVarP :: Parser LExpr
+    lAbsP = do
+        _lambda <- tok (P.oneOf ("λ\\" :: [Char])) <?> "lambda"
+        vars    <- P.someTill varP (tok (P.char '.'))
+        body    <- lExprP
+        pure (lAbs vars body)
+    lAppP = do
+        e1 <- lExprP
+        e2 <- lExprP
+        pure (LApp e1 e2)
+    lVarP = fmap LVar varP
+    varP = fmap (Var . T.pack) (tok (P.some variableCharP))
+      where
+        asciiChars = take 128 [minBound..]
+        variableCharP = P.oneOf ("-_" ++ filter (\c -> isAlphaNum c) asciiChars)
+
+
+
+-- lExprP :: Parser LExpr
+-- lExprP = lVarP <|> funcAppP <|> lambdaAbsP
+--   where
+--     funcAppP = liftA2 LApp funcP argP
+--
+--     funcP = lVarP <|> parenthesized lambdaAbsP <|> funcAppP
+--
+--     argP = lVarP <|> parenthesized lambdaAbsP <|> parenthesized funcAppP
+--
+--     lambdaAbsP = do
+--         _lambda <- tok (P.char 'λ' <|> P.char '\\')
+--         vars    <- P.someTill varP (tok (P.char '.'))
+--         body    <- lExprP
+--         pure (lAbs vars body)
+--
+--     lVarP = fmap LVar varP
+--     varP = fmap (Var . T.pack) (tok (P.some variableCharP))
+--       where
+--         asciiChars = take 128 [minBound..]
+--         variableCharP = P.oneOf ("-_" ++ filter (\c -> isAlphaNum c) asciiChars)
+
+
+
+
+     -- <expr>   ::=  <var>
+     --             | <func> <arg>
+     --             | lambda <var> . <expr>
+     -- <func>   ::=  <var>
+     --             | (lambda <var> . <expr>)
+     --             | <func> <arg>
+     -- <arg>    ::=  <var>
+     --             | (lambda <var> . <expr>)
+     --             | (<func> <arg>)
+     -- <var>    ::= a| b| .... | Z
+
+tok :: Parser a -> Parser a
+tok p = p <* P.space
+
+parenthesized :: Parser a -> Parser a
+parenthesized = P.between (tok (P.char '(')) (tok (P.char ')'))
