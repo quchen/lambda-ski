@@ -3,6 +3,4 @@ module Main where
 import Lib
 
 main :: IO ()
-main = someFunc
-
-
+main = putStrLn . prettyLambda . enormousize 4 $ ycL
