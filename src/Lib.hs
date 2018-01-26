@@ -1,17 +1,13 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-{-# OPTIONS_GHC -fno-warn-unused-imports #-}
-
 module Lib where
 
 
 
 import           Control.Applicative
-import           Control.Monad
 import           Data.Char
 import           Data.Coerce
-import           Data.Foldable
 import qualified Data.List            as L
 import           Data.Semigroup
 import           Data.Set             (Set)
@@ -21,9 +17,7 @@ import           Data.Text            (Text)
 import qualified Data.Text            as T
 import           Text.Megaparsec      ((<?>))
 import qualified Text.Megaparsec      as P
-import qualified Text.Megaparsec.Char as P
 import           Text.Megaparsec.Text (Parser)
-import qualified Text.Megaparsec.Text as P
 
 
 
@@ -157,7 +151,8 @@ skiToLambda = \case
     SApp f x -> LApp (skiToLambda f) (skiToLambda x)
 
 lApp :: LExpr -> [LExpr] -> LExpr
-lApp = foldl LApp
+lApp f [] = f
+lApp f (x:xs) = lApp (LApp f x) xs
 
 lAbs :: [Var] -> LExpr -> LExpr
 lAbs xs e = foldr LAbs e xs
@@ -191,7 +186,7 @@ idL = LAbs "x" (LVar "x")
 test :: LExpr
 test = LAbs "x" (LAbs "y" (LVar "x"))
 
--- should be (S (K (S ((S K) K))) (S (K K) ((S K) K)))
+-- should be S (K (S (S K K))) (S (K K) (S K K))
 test2 :: LExpr
 test2 = LAbs "x" (LAbs "y" (LApp (LVar "y") (LVar "x")))
 
@@ -201,69 +196,78 @@ testConversion term = do
     putStr "Result: "
     (putStrLn . prettySki . lambdaToSki) term
 
-parseLambda :: Text -> LExpr
-parseLambda input = case P.parse lExprP ("λ expression" :: String) input of
-    Left err -> error (show err)
-    Right r -> r
+parseLambda :: Text -> Either String LExpr
+parseLambda input = case P.parse (lExprP <* P.eof) ("λ expression" :: String) input of
+    Left err -> Left (P.parseErrorPretty err)
+    Right r -> Right r
 
 lExprP :: Parser LExpr
-lExprP = lAbsP <|> lVarAppP
+lExprP = do
+    stuff <- P.some term
+    case stuff of
+        [] -> error "some is broken booo"
+        [x] -> pure x
+        s:tuff -> pure (lApp s tuff)
   where
-    lAbsP, lAppP, lVarP :: Parser LExpr
-    lAbsP = do
+    term = varP <|> absP <|> parenthesized lExprP
+    absP = do
         _lambda <- tok (P.oneOf ("λ\\" :: [Char])) <?> "lambda"
-        vars    <- P.someTill varP (tok (P.char '.'))
+        vars    <- P.someTill plainVarP (tok (P.char '.'))
         body    <- lExprP
         pure (lAbs vars body)
-    lAppP = do
-        e1 <- lExprP
-        e2 <- lExprP
-        pure (LApp e1 e2)
-    lVarP = fmap LVar varP
-    varP = fmap (Var . T.pack) (tok (P.some variableCharP))
+    varP = fmap LVar plainVarP
+    plainVarP = fmap (Var . T.pack) (tok (P.some variableCharP))
       where
-        asciiChars = take 128 [minBound..]
-        variableCharP = P.oneOf ("-_" ++ filter (\c -> isAlphaNum c) asciiChars)
-
-
-
--- lExprP :: Parser LExpr
--- lExprP = lVarP <|> funcAppP <|> lambdaAbsP
---   where
---     funcAppP = liftA2 LApp funcP argP
---
---     funcP = lVarP <|> parenthesized lambdaAbsP <|> funcAppP
---
---     argP = lVarP <|> parenthesized lambdaAbsP <|> parenthesized funcAppP
---
---     lambdaAbsP = do
---         _lambda <- tok (P.char 'λ' <|> P.char '\\')
---         vars    <- P.someTill varP (tok (P.char '.'))
---         body    <- lExprP
---         pure (lAbs vars body)
---
---     lVarP = fmap LVar varP
---     varP = fmap (Var . T.pack) (tok (P.some variableCharP))
---       where
---         asciiChars = take 128 [minBound..]
---         variableCharP = P.oneOf ("-_" ++ filter (\c -> isAlphaNum c) asciiChars)
-
-
-
-
-     -- <expr>   ::=  <var>
-     --             | <func> <arg>
-     --             | lambda <var> . <expr>
-     -- <func>   ::=  <var>
-     --             | (lambda <var> . <expr>)
-     --             | <func> <arg>
-     -- <arg>    ::=  <var>
-     --             | (lambda <var> . <expr>)
-     --             | (<func> <arg>)
-     -- <var>    ::= a| b| .... | Z
+        variableCharP = P.satisfy (\c -> (isAlphaNum c || isSymbol c) && c `notElem` ("λ\\." :: String))
 
 tok :: Parser a -> Parser a
 tok p = p <* P.space
 
 parenthesized :: Parser a -> Parser a
 parenthesized = P.between (tok (P.char '(')) (tok (P.char ')'))
+
+
+parseLambdaTest :: Text -> IO ()
+parseLambdaTest input = do
+    putStrLn ("Parse: " ++ T.unpack input)
+    putStrLn ""
+    case parseLambda input of
+        Left err -> do
+            putStrLn "ERROR"
+            putStrLn err
+        Right r -> do
+            print r
+            putStrLn (prettyLambda r)
+
+parseSki :: Text -> Either String SExpr
+parseSki input = case P.parse (sExprP <* P.eof) ("SK expression" :: String) input of
+    Left err -> Left (P.parseErrorPretty err)
+    Right r -> Right r
+
+sExprP :: Parser SExpr
+sExprP = do
+    stuff <- P.some term
+    case stuff of
+        []     -> error "some is broken booo"
+        [x]    -> pure x
+        s:tuff -> pure (sApp s tuff)
+  where
+    sP = tok (P.oneOf ("sS" :: String)) *> pure S
+    kP = tok (P.oneOf ("kK" :: String)) *> pure K
+    term = sP <|> kP <|> parenthesized sExprP
+
+    sApp :: SExpr -> [SExpr] -> SExpr
+    sApp f [] = f
+    sApp f (x:xs) = sApp (SApp f x) xs
+
+parseSkiTest :: Text -> IO ()
+parseSkiTest input = do
+    putStrLn ("Parse: " ++ T.unpack input)
+    putStrLn ""
+    case parseSki input of
+        Left err -> do
+            putStrLn "ERROR"
+            putStrLn err
+        Right r -> do
+            print r
+            putStrLn (prettySki r)
