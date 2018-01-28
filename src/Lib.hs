@@ -8,27 +8,28 @@ module Lib where
 import           Control.Applicative
 import           Data.Char
 import           Data.Coerce
-import qualified Data.List            as L
+import           Data.Map                                (Map)
+import qualified Data.Map                                as M
 import           Data.Semigroup
-import           Data.Set             (Set)
-import qualified Data.Set             as S
+import           Data.Set                                (Set)
+import qualified Data.Set                                as S
 import           Data.String
-import           Data.Text            (Text)
-import qualified Data.Text            as T
-import           Text.Megaparsec      ((<?>))
-import qualified Text.Megaparsec      as P
-import           Text.Megaparsec.Text (Parser)
+import           Data.Text                               (Text)
+import qualified Data.Text                               as T
+import           Data.Text.Prettyprint.Doc
+import           Data.Text.Prettyprint.Doc.Render.String
+import           Text.Megaparsec                         ((<?>))
+import qualified Text.Megaparsec                         as P
+import           Text.Megaparsec.Text                    (Parser)
 
 
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
 
 newtype Var = Var Text deriving (Eq, Ord)
 instance Show Var where show (Var x) = T.unpack x
+instance Pretty Var where pretty (Var x) = pretty x
 instance IsString Var where fromString = (coerce :: Text -> Var) . fromString
 
-data LExpr = LVar Var | LApp LExpr LExpr | LAbs Var LExpr deriving (Eq, Ord, Show)
+data LExpr = LVar Var | LApp LExpr LExpr | LAbs Var LExpr deriving (Eq, Ord)
 
 -- prettyLambda :: LExpr -> String
 -- prettyLambda = \case
@@ -38,21 +39,24 @@ data LExpr = LVar Var | LApp LExpr LExpr | LAbs Var LExpr deriving (Eq, Ord, Sho
 
 data ParensNecessary = Parens | NoParens
 
-prettyLambda :: LExpr -> String
-prettyLambda = go NoParens
-  where
-    go _ (LVar x) = show x
-    go Parens x = "(" ++ go NoParens x ++ ")"
-    go NoParens (LApp e1 e2)
-      = let parenthesize = case e1 of LAbs{} -> Parens; _ -> NoParens
-        in go parenthesize e1 ++ " " ++ go Parens e2
-    go _ lamAbs@LAbs{}
-      = let collectArgs args expr = case expr of
-                LAbs y e' -> collectArgs (y:args) e'
-                _other -> (args, expr)
-            (collectedArgs, finalExpr) = collectArgs [] lamAbs
-            finalArgs = map show (reverse collectedArgs)
-        in "λ" ++ L.intercalate " " finalArgs ++ ". " ++ go NoParens finalExpr
+instance Pretty LExpr where
+    pretty = go NoParens
+      where
+        go _ (LVar x) = pretty x
+        go Parens x = parens (go NoParens x)
+        go NoParens (LApp e1 e2)
+          = let parenthesize = case e1 of LAbs{} -> Parens; _ -> NoParens
+            in align (sep [go parenthesize e1, go Parens e2])
+        go _ lamAbs@LAbs{}
+          = let collectArgs args expr = case expr of
+                    LAbs y e' -> collectArgs (y:args) e'
+                    _other -> (args, expr)
+                (collectedArgs, finalExpr) = collectArgs [] lamAbs
+                finalArgs = map pretty (reverse collectedArgs)
+            in "λ" <> hsep finalArgs <> dot <+> go NoParens finalExpr
+
+instance Show LExpr where
+    show = renderString . layoutPretty defaultLayoutOptions . pretty
 
 free :: LExpr -> Set Var
 free = \case
@@ -63,7 +67,7 @@ free = \case
 isCombinator :: LExpr -> Bool
 isCombinator = S.null . free
 
-data SExpr = S | K | SApp SExpr SExpr deriving (Eq, Ord, Show)
+data SExpr = S | K | SApp SExpr SExpr deriving (Eq, Ord)
 
 data SLExpr = SLS | SLK | SLVar Var | SLApp SLExpr SLExpr | SLAbs Var SLExpr deriving (Eq, Ord, Show)
 
@@ -130,13 +134,16 @@ lambdaToSki = slToS . go . lToSl
         SLApp f x -> freeSL f <> freeSL x
         SLAbs x e -> S.delete x (freeSL e)
 
-prettySki :: SExpr -> String
-prettySki = go NoParens
-  where
-    go _ S = "S"
-    go _ K = "K"
-    go Parens app@SApp{} = "(" ++ go NoParens app ++ ")"
-    go NoParens (SApp x y) = go NoParens x ++ " " ++ go Parens y
+instance Pretty SExpr where
+    pretty = go NoParens
+      where
+        go _ S = "S"
+        go _ K = "K"
+        go Parens app@SApp{} = parens (go NoParens app)
+        go NoParens (SApp x y) = align (sep [go NoParens x, go Parens y])
+
+instance Show SExpr where
+    show = renderString . layoutPretty defaultLayoutOptions . pretty
 
 -- Make a lambda term enormous by converting it to SKI and back a couple of
 -- times.
@@ -183,30 +190,26 @@ oMegaL = LApp omegaL omegaL
 idL :: LExpr
 idL = LAbs "x" (LVar "x")
 
-test :: LExpr
-test = LAbs "x" (LAbs "y" (LVar "x"))
-
 -- should be S (K (S (S K K))) (S (K K) (S K K))
 test2 :: LExpr
 test2 = LAbs "x" (LAbs "y" (LApp (LVar "y") (LVar "x")))
 
-testConversion :: LExpr -> IO ()
-testConversion term = do
-    putStrLn ("Convert " ++ prettyLambda term)
-    putStr "Result: "
-    (putStrLn . prettySki . lambdaToSki) term
-
 parseLambda :: Text -> Either String LExpr
-parseLambda input = case P.parse (lExprP <* P.eof) ("λ expression" :: String) input of
+parseLambda input = case P.parse (P.space *> lExprP <* P.eof) ("λ expression" :: String) input of
     Left err -> Left (P.parseErrorPretty err)
     Right r -> Right r
+
+unsafeParseLambda :: Text -> LExpr
+unsafeParseLambda input = case parseLambda input of
+    Left err -> error ("unsafeParseLambda parse error: " ++ err)
+    Right r -> r
 
 lExprP :: Parser LExpr
 lExprP = do
     stuff <- P.some term
     case stuff of
-        [] -> error "some is broken booo"
-        [x] -> pure x
+        []     -> error "some is broken booo"
+        [x]    -> pure x
         s:tuff -> pure (lApp s tuff)
   where
     term = varP <|> absP <|> parenthesized lExprP
@@ -218,14 +221,13 @@ lExprP = do
     varP = fmap LVar plainVarP
     plainVarP = fmap (Var . T.pack) (tok (P.some variableCharP))
       where
-        variableCharP = P.satisfy (\c -> (isAlphaNum c || isSymbol c) && c `notElem` ("λ\\." :: String))
+        variableCharP = P.satisfy (\c -> (isAlphaNum c || isSymbol c || c `elem` ("_'<>+&-*/[]{}" :: String)) && c `notElem` ("λ\\." :: String))
 
 tok :: Parser a -> Parser a
 tok p = p <* P.space
 
 parenthesized :: Parser a -> Parser a
 parenthesized = P.between (tok (P.char '(')) (tok (P.char ')'))
-
 
 parseLambdaTest :: Text -> IO ()
 parseLambdaTest input = do
@@ -237,7 +239,6 @@ parseLambdaTest input = do
             putStrLn err
         Right r -> do
             print r
-            putStrLn (prettyLambda r)
 
 parseSki :: Text -> Either String SExpr
 parseSki input = case P.parse (sExprP <* P.eof) ("SK expression" :: String) input of
@@ -270,4 +271,58 @@ parseSkiTest input = do
             putStrLn err
         Right r -> do
             print r
-            putStrLn (prettySki r)
+
+evalLambda :: LExpr -> LExpr
+evalLambda = go M.empty
+  where
+    go :: Map Var LExpr -> LExpr -> LExpr
+    go env lVar@(LVar var) = case M.lookup var env of
+        Just replacement -> replacement
+        Nothing          -> lVar
+
+    go env (LAbs x e) = LAbs x (go (M.delete x env) e)
+
+    go env (LApp e1 e2) = case go env e1 of
+        LAbs x e1' -> go (M.insert x (go env e2) env) e1'
+        var@LVar{} -> LApp var (go env e2)
+        app@LApp{} -> LApp app (go env e2)
+
+-- Broken :-(
+factorialLambda :: LExpr
+factorialLambda = unsafeParseLambda "\
+    \ (λpred mul true false Y.                    \
+    \     (λisZero.                               \
+    \         Y (λrec n. (isZero n)               \
+    \                    n                        \
+    \                    (mul n (rec (pred n)))   \
+    \           )                                 \
+    \     )                                       \
+    \     (λn. n (λ_. false) true)                \
+    \ )                                           \
+    \ (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u)) \
+    \ (λm n f x. m (n f) x)                       \
+    \ (λt _. t)                                   \
+    \ (λ_ f. f)                                   \
+    \ (λf. (λx. f (x x)) (λx. f (x x)))           \
+    \ (λf x. f (f (f x)))                         \
+    \"
+
+-- Broken :-(
+fiboLambda :: LExpr
+fiboLambda = unsafeParseLambda
+    " (λsucc pred true false Y 1 2 isZero add sub leq. \
+    \     Y (λrec n. (leq n 1)                         \
+    \                n                                 \
+    \                (add (rec (sub n 1))              \
+    \                         (rec (sub n 2)))))       \
+    \ (λn f x. f (n f x))                              \
+    \ (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u))      \
+    \ (λt _. t)                                        \
+    \ (λ_ f. f)                                        \
+    \ (λf. (λx. f (x x)) (λx. f (x x)))                \
+    \ (λf x. f x)                                      \
+    \ (λf x. f (f x))                                  \
+    \ (λn. n (λ_. false) true)                         \
+    \ (λm n. m succ n)                                 \
+    \ (λm n. n pred m)                                 \
+    \ (λm n. isZero (sub m n))                         "
