@@ -282,10 +282,12 @@ evalLambda = go M.empty
 
     go env (LAbs x e) = LAbs x (go (M.delete x env) e)
 
-    go env (LApp e1 e2) = case go env e1 of
-        LAbs x e1' -> go (M.insert x (go env e2) env) e1'
-        var@LVar{} -> LApp var (go env e2)
-        app@LApp{} -> LApp app (go env e2)
+    go env (LApp e1 e2)
+      = let e2' = go env e2
+        in case go env e1 of
+            LAbs x e1' -> go (M.insert x e2' env) e1'
+            var@LVar{} -> LApp var e2'
+            app@LApp{} -> LApp app e2'
 
 -- Broken :-(
 factorialLambda :: LExpr

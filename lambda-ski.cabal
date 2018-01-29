@@ -38,6 +38,9 @@ test-suite lambda-ski-test
     build-depends:
           base
         , lambda-ski
+        , tasty
+        , tasty-hunit
+        , HUnit
     ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
     type:                exitcode-stdio-1.0
     hs-source-dirs:      test
