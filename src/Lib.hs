@@ -6,6 +6,7 @@ module Lib where
 
 
 import           Control.Applicative
+import           Control.Monad.State
 import           Data.Char
 import           Data.Coerce
 import           Data.Map                                (Map)
@@ -29,7 +30,7 @@ instance Show Var where show (Var x) = T.unpack x
 instance Pretty Var where pretty (Var x) = pretty x
 instance IsString Var where fromString = (coerce :: Text -> Var) . fromString
 
-data LExpr = LVar Var | LApp LExpr LExpr | LAbs Var LExpr deriving (Eq, Ord)
+data LExpr var = LVar var | LApp (LExpr var) (LExpr var) | LAbs var (LExpr var) deriving (Eq, Ord)
 
 -- prettyLambda :: LExpr -> String
 -- prettyLambda = \case
@@ -39,7 +40,7 @@ data LExpr = LVar Var | LApp LExpr LExpr | LAbs Var LExpr deriving (Eq, Ord)
 
 data ParensNecessary = Parens | NoParens
 
-instance Pretty LExpr where
+instance Pretty var => Pretty (LExpr var) where
     pretty = go NoParens
       where
         go _ (LVar x) = pretty x
@@ -55,16 +56,16 @@ instance Pretty LExpr where
                 finalArgs = map pretty (reverse collectedArgs)
             in "λ" <> hsep finalArgs <> dot <+> go NoParens finalExpr
 
-instance Show LExpr where
+instance Pretty var => Show (LExpr var) where
     show = renderString . layoutPretty defaultLayoutOptions . pretty
 
-free :: LExpr -> Set Var
+free :: Ord var => LExpr var -> Set var
 free = \case
     LVar x   -> S.singleton x
     LApp f x -> free f <> free x
     LAbs x e -> S.delete x (free e)
 
-isCombinator :: LExpr -> Bool
+isCombinator :: Ord var => LExpr var -> Bool
 isCombinator = S.null . free
 
 data SExpr
@@ -73,12 +74,12 @@ data SExpr
     | SApp SExpr SExpr
     deriving (Eq, Ord)
 
-data SLExpr
-    = SLS                 -- ^ S
-    | SLK                 -- ^ K
-    | SLVar Var           -- ^ x
-    | SLApp SLExpr SLExpr -- ^ e1 e2
-    | SLAbs Var SLExpr    -- ^ λx. e
+data SLExpr var
+    = SLS                             -- ^ S
+    | SLK                             -- ^ K
+    | SLVar var                       -- ^ x
+    | SLApp (SLExpr var) (SLExpr var) -- ^ e1 e2
+    | SLAbs var (SLExpr var)          -- ^ λx. e
     deriving (Eq, Ord, Show)
 
 data Validation e a = Error e | Success a deriving (Eq, Ord, Show)
@@ -96,16 +97,16 @@ unsafeFromSuccess :: Validation e a -> a
 unsafeFromSuccess (Success x) = x
 unsafeFromSuccess (Error _) = error "unsafeFromSuccess (Error e)"
 
-lambdaToSki :: LExpr -> Validation [Text] SExpr
+lambdaToSki :: (Ord var, Show var) => LExpr var -> Validation [Text] SExpr
 lambdaToSki = slToS . go . lToSl
   where
-    lToSl :: LExpr -> SLExpr
+    lToSl :: LExpr var -> SLExpr var
     lToSl = \case
         LVar x   -> SLVar x
         LApp f x -> SLApp (lToSl f) (lToSl x)
         LAbs x e -> SLAbs x (lToSl e)
 
-    slToS :: SLExpr -> Validation [Text] SExpr
+    slToS :: Show var => SLExpr var -> Validation [Text] SExpr
     slToS = \case
         SLS       -> pure S
         SLK       -> pure K
@@ -113,7 +114,7 @@ lambdaToSki = slToS . go . lToSl
         SLApp f x -> liftA2 SApp (slToS f) (slToS x)
         e@SLAbs{} -> Error ["Abstraction " <> T.pack (show e) <> " unconverted"]
 
-    go :: SLExpr -> SLExpr
+    go :: Ord var => SLExpr var -> SLExpr var
     go = \case
 
         -- T[x] => x
@@ -148,10 +149,10 @@ lambdaToSki = slToS . go . lToSl
         e@(SLAbs _ (SLApp _ _)) -> e
         e@(SLAbs _ (SLAbs _ _)) -> e
 
-    occursFreeIn :: Var -> SLExpr -> Bool
+    occursFreeIn :: Ord var => var -> SLExpr var -> Bool
     occursFreeIn x e = S.member x (freeSL e)
 
-    freeSL :: SLExpr -> Set Var
+    freeSL :: Ord var => SLExpr var -> Set var
     freeSL = \case
         SLS       -> mempty
         SLK       -> mempty
@@ -172,26 +173,26 @@ instance Show SExpr where
 
 -- Make a lambda term enormous by converting it to SKI and back a couple of
 -- times.
-unsafeEnormousize :: Int -> LExpr -> LExpr
+unsafeEnormousize :: Int -> LExpr Var -> LExpr Var
 unsafeEnormousize n = foldr (.) id (replicate n (skiToLambda . unsafeFromSuccess . lambdaToSki))
 
-skiToLambda :: SExpr -> LExpr
+skiToLambda :: SExpr -> LExpr Var
 skiToLambda = \case
     S        -> lAbs ["f","g","x"]
                      (lApp (LVar "f") [LVar "x", LApp (LVar "g") (LVar "x")])
     K        -> lAbs ["x","y"] (LVar "x")
     SApp f x -> LApp (skiToLambda f) (skiToLambda x)
 
-lApp :: LExpr -> [LExpr] -> LExpr
+lApp :: LExpr var -> [LExpr var] -> LExpr var
 lApp f [] = f
 lApp f (x:xs) = lApp (LApp f x) xs
 
-lAbs :: [Var] -> LExpr -> LExpr
+lAbs :: [var] -> LExpr var -> LExpr var
 lAbs xs e = foldr LAbs e xs
 
 -- Y combinator
 -- λf. ((λx. (f (x x))) (λx. (f (x x))))
-ycL :: LExpr
+ycL :: LExpr Var
 ycL = LAbs "f" (LApp (LAbs "x" (LApp (LVar "f")
                                      (LApp (LVar "x")
                                            (LVar "x"))))
@@ -199,37 +200,17 @@ ycL = LAbs "f" (LApp (LAbs "x" (LApp (LVar "f")
                                      (LApp (LVar "x")
                                            (LVar "x")))))
 
--- Y combinator
-ycS :: SExpr
-ycS = S `SApp` S `SApp` K `SApp` (S `SApp` (K `SApp` (S `SApp` S `SApp` (S `SApp` (S `SApp` S `SApp` K)))) `SApp` K)
-
--- λx. x x
-omegaL :: LExpr
-omegaL = LAbs "x" (LApp (LVar "x") (LVar "x"))
-
--- (λx. x x) (λx. x x)
-oMegaL :: LExpr
-oMegaL = LApp omegaL omegaL
-
--- λx. x
-idL :: LExpr
-idL = LAbs "x" (LVar "x")
-
--- should be S (K (S (S K K))) (S (K K) (S K K))
-test2 :: LExpr
-test2 = LAbs "x" (LAbs "y" (LApp (LVar "y") (LVar "x")))
-
-parseLambda :: Text -> Either String LExpr
+parseLambda :: Text -> Either String (LExpr Var)
 parseLambda input = case P.parse (P.space *> lExprP <* P.eof) ("λ expression" :: String) input of
     Left err -> Left (P.parseErrorPretty err)
     Right r -> Right r
 
-unsafeParseLambda :: Text -> LExpr
+unsafeParseLambda :: Text -> LExpr Var
 unsafeParseLambda input = case parseLambda input of
     Left err -> error ("unsafeParseLambda parse error: " ++ err)
     Right r -> r
 
-lExprP :: Parser LExpr
+lExprP :: Parser (LExpr Var)
 lExprP = do
     stuff <- P.some term
     case stuff of
@@ -297,10 +278,10 @@ parseSkiTest input = do
         Right r -> do
             print r
 
-evalLambdaScopedAndBroken :: LExpr -> LExpr
-evalLambdaScopedAndBroken = go M.empty
+evalLambda :: LExpr Var -> LExpr Var
+evalLambda = unRename . go M.empty . rename
   where
-    go :: Map Var LExpr -> LExpr -> LExpr
+    go :: Map (Var,Integer) (LExpr (Var,Integer)) -> LExpr (Var,Integer) -> LExpr (Var,Integer)
     go env lVar@(LVar var) = case M.lookup var env of
         Just replacement -> replacement
         Nothing          -> lVar
@@ -314,29 +295,35 @@ evalLambdaScopedAndBroken = go M.empty
             var@LVar{} -> LApp var e2'
             app@LApp{} -> LApp app e2'
 
-evalLambda :: LExpr -> LExpr
-evalLambda = go
+-- Rename all variables, so that capture-avoiding substitution is
+-- unnecessary.
+rename :: Ord var => LExpr var -> LExpr (var, Integer)
+rename = flip evalState M.empty . enumerate
   where
-    go var@LVar{} = var
-    go (LAbs x e) = LAbs x (go e)
-    go (LApp e1 e2) = case go e1 of
-        LAbs x e1' -> go (subst x e2 e1')
-        var@LVar{} -> LApp var (go e2)
-        app@LApp{} -> LApp app (go e2)
+    enumerate :: Ord var => LExpr var -> State (Map var Integer) (LExpr (var, Integer))
+    enumerate (LVar x) = do
+        multiplicity <- gets (M.lookup x)
+        case multiplicity of
+            Just index -> pure (LVar (x, index))
+            Nothing    -> do modify (M.insert x 0)
+                             pure (LVar (x, 0))
+    enumerate (LAbs x e) = do
+        multiplicity <- gets (M.lookup x)
+        let xIndex = case multiplicity of
+                Just index -> index+1
+                _otherwise -> 0
+        modify (M.insert x xIndex)
+        LAbs (x, xIndex) <$> enumerate e
+    enumerate (LApp e1 e2) = liftA2 LApp (enumerate e1) (enumerate e2)
 
-    subst :: Var -> LExpr -> LExpr -> LExpr
-    subst needle val lVar@(LVar var')
-        | needle == var' = val
-        | otherwise = lVar
-    subst needle val (LApp e1 e2) = LApp (subst needle val e1) (subst needle val e2)
-    subst needle val lambda@(LAbs x e)
-        | needle == x = lambda
-        | needle `S.notMember` free val = LAbs x (subst needle val e)
-        | otherwise = let y = fresh
-                      in LAbs y (subst needle val (subst x (LVar y) e))
+unRename :: LExpr (Var, Integer) -> LExpr Var
+unRename (LVar (Var var, 0)) = LVar (Var var)
+unRename (LVar (Var var, i)) = LVar (Var (var <> T.pack (show i)))
+unRename (LAbs (var, _) e)   = LAbs var (unRename e)
+unRename (LApp e1 e2)        = LApp (unRename e1) (unRename e2)
 
 -- Broken :-(
-factorialLambda :: LExpr
+factorialLambda :: LExpr Var
 factorialLambda = unsafeParseLambda "\
     \ (λpred mul true false Y.                    \
     \     (λisZero.                               \
@@ -356,7 +343,7 @@ factorialLambda = unsafeParseLambda "\
     \"
 
 -- Broken :-(
-fiboLambda :: LExpr
+fiboLambda :: LExpr Var
 fiboLambda = unsafeParseLambda
     " (λsucc pred true false Y 1 2 isZero add sub leq. \
     \     Y (λrec n. (leq n 1)                         \

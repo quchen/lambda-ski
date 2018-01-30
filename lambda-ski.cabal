@@ -19,6 +19,8 @@ library
         , containers
         , megaparsec
         , text
+        , transformers
+        , mtl
         , prettyprinter
     hs-source-dirs:      src
     exposed-modules:     Lib

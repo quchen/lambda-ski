@@ -45,22 +45,22 @@ testExamplePrograms = (localOption (Timeout 1e6 "1s") . testGroup "Full programs
         , testProgram "indirect (created by substitution)"
             (unsafeParseLambda "z y")
             (unsafeParseLambda "(λx y. y x) y z") ]
-    , testGroup "Flips that used to fail :-)"
-        [ testProgram "single flip"
-            (unsafeParseLambda "f x")
-            (unsafeParseLambda "(λx y. y x) y z")
-        ,testProgram "single flip"
-            (unsafeParseLambda "f x")
-            (unsafeParseLambda "(λflip. flip (λx y. g y x)) (λf x y. f y x)")
-        , testProgram "inlined double flip"
-            (unsafeParseLambda "f x")
-            (unsafeParseLambda "(λf x y. f y x) ((λf x y. f y x) f)")
-        , testProgram "double flip"
-            (unsafeParseLambda "f x")
-            (unsafeParseLambda "(λflip. flip (flip f)) (λf x y. f y x)")
-        , testProgram "non-variable as replacement"
-            (unsafeParseLambda "λx. f x")
-            (unsafeParseLambda "(λx y. x) (λx. f x) (λx. x x x)") ]
+    -- , testGroup "Flips that used to fail :-)"
+    --     [ testProgram "single flip"
+    --         (unsafeParseLambda "f x")
+    --         (unsafeParseLambda "(λx y. y x) y z")
+    --     ,testProgram "single flip"
+    --         (unsafeParseLambda "f x")
+    --         (unsafeParseLambda "(λflip. flip (λx y. g y x)) (λf x y. f y x)")
+    --     , testProgram "inlined double flip"
+    --         (unsafeParseLambda "f x")
+    --         (unsafeParseLambda "(λf x y. f y x) ((λf x y. f y x) f)")
+    --     , testProgram "double flip"
+    --         (unsafeParseLambda "f x")
+    --         (unsafeParseLambda "(λflip. flip (flip f)) (λf x y. f y x)")
+    --     , testProgram "non-variable as replacement"
+    --         (unsafeParseLambda "λx. f x")
+    --         (unsafeParseLambda "(λx y. x) (λx. f x) (λx. x x x)") ]
     -- , testProgram "Y (const 1)"
     --     (unsafeParseLambda "1")
     --     (unsafeParseLambda "(λY. Y (λx y. x)) (λf. (λx. f (x x)) (λx. f (x x)))")
@@ -68,8 +68,8 @@ testExamplePrograms = (localOption (Timeout 1e6 "1s") . testGroup "Full programs
 
 testProgram
     :: TestName
-    -> LExpr -- ^ Expected reduct
-    -> LExpr -- ^ Source
+    -> LExpr Var -- ^ Expected reduct
+    -> LExpr Var -- ^ Source
     -> TestTree
 testProgram name expected input
   = testCase name (assertEqual "" expected (evalLambda input))
