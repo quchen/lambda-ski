@@ -67,11 +67,36 @@ free = \case
 isCombinator :: LExpr -> Bool
 isCombinator = S.null . free
 
-data SExpr = S | K | SApp SExpr SExpr deriving (Eq, Ord)
+data SExpr
+    = S
+    | K
+    | SApp SExpr SExpr
+    deriving (Eq, Ord)
 
-data SLExpr = SLS | SLK | SLVar Var | SLApp SLExpr SLExpr | SLAbs Var SLExpr deriving (Eq, Ord, Show)
+data SLExpr
+    = SLS                 -- ^ S
+    | SLK                 -- ^ K
+    | SLVar Var           -- ^ x
+    | SLApp SLExpr SLExpr -- ^ e1 e2
+    | SLAbs Var SLExpr    -- ^ λx. e
+    deriving (Eq, Ord, Show)
 
-lambdaToSki :: LExpr -> SExpr
+data Validation e a = Error e | Success a deriving (Eq, Ord, Show)
+instance Functor (Validation e) where
+    fmap _ (Error e) = Error e
+    fmap f (Success a) = Success (f a)
+instance Semigroup e => Applicative (Validation e) where
+    pure = Success
+    Error e1  <*> Error e2  = Error (e1 <> e2)
+    Error e   <*> Success _ = Error e
+    Success _ <*> Error e   = Error e
+    Success f <*> Success x = Success (f x)
+
+unsafeFromSuccess :: Validation e a -> a
+unsafeFromSuccess (Success x) = x
+unsafeFromSuccess (Error _) = error "unsafeFromSuccess (Error e)"
+
+lambdaToSki :: LExpr -> Validation [Text] SExpr
 lambdaToSki = slToS . go . lToSl
   where
     lToSl :: LExpr -> SLExpr
@@ -80,13 +105,13 @@ lambdaToSki = slToS . go . lToSl
         LApp f x -> SLApp (lToSl f) (lToSl x)
         LAbs x e -> SLAbs x (lToSl e)
 
-    slToS :: SLExpr -> SExpr
+    slToS :: SLExpr -> Validation [Text] SExpr
     slToS = \case
-        SLS       -> S
-        SLK       -> K
-        e@SLVar{} -> error ("Variable " ++ show e ++ " unconverted")
-        SLApp f x -> SApp (slToS f) (slToS x)
-        e@SLAbs{} -> error ("Abstraction " ++ show e ++ " unconverted")
+        SLS       -> pure S
+        SLK       -> pure K
+        e@SLVar{} -> Error ["Variable " <> T.pack (show e) <> " unconverted"]
+        SLApp f x -> liftA2 SApp (slToS f) (slToS x)
+        e@SLAbs{} -> Error ["Abstraction " <> T.pack (show e) <> " unconverted"]
 
     go :: SLExpr -> SLExpr
     go = \case
@@ -147,8 +172,8 @@ instance Show SExpr where
 
 -- Make a lambda term enormous by converting it to SKI and back a couple of
 -- times.
-enormousize :: Int -> LExpr -> LExpr
-enormousize n = foldr (.) id (replicate n (skiToLambda . lambdaToSki))
+unsafeEnormousize :: Int -> LExpr -> LExpr
+unsafeEnormousize n = foldr (.) id (replicate n (skiToLambda . unsafeFromSuccess . lambdaToSki))
 
 skiToLambda :: SExpr -> LExpr
 skiToLambda = \case
@@ -272,8 +297,8 @@ parseSkiTest input = do
         Right r -> do
             print r
 
-evalLambda :: LExpr -> LExpr
-evalLambda = go M.empty
+evalLambdaScopedAndBroken :: LExpr -> LExpr
+evalLambdaScopedAndBroken = go M.empty
   where
     go :: Map Var LExpr -> LExpr -> LExpr
     go env lVar@(LVar var) = case M.lookup var env of
@@ -288,6 +313,27 @@ evalLambda = go M.empty
             LAbs x e1' -> go (M.insert x e2' env) e1'
             var@LVar{} -> LApp var e2'
             app@LApp{} -> LApp app e2'
+
+evalLambda :: LExpr -> LExpr
+evalLambda = go
+  where
+    go var@LVar{} = var
+    go (LAbs x e) = LAbs x (go e)
+    go (LApp e1 e2) = case go e1 of
+        LAbs x e1' -> go (subst x e2 e1')
+        var@LVar{} -> LApp var (go e2)
+        app@LApp{} -> LApp app (go e2)
+
+    subst :: Var -> LExpr -> LExpr -> LExpr
+    subst needle val lVar@(LVar var')
+        | needle == var' = val
+        | otherwise = lVar
+    subst needle val (LApp e1 e2) = LApp (subst needle val e1) (subst needle val e2)
+    subst needle val lambda@(LAbs x e)
+        | needle == x = lambda
+        | needle `S.notMember` free val = LAbs x (subst needle val e)
+        | otherwise = let y = fresh
+                      in LAbs y (subst needle val (subst x (LVar y) e))
 
 -- Broken :-(
 factorialLambda :: LExpr

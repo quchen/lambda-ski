@@ -3,4 +3,4 @@ module Main where
 import Lib
 
 main :: IO ()
-main = print (enormousize 4 ycL)
+main = print (unsafeEnormousize 4 ycL)
