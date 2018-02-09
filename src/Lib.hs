@@ -278,6 +278,16 @@ parseSkiTest input = do
         Right r -> do
             print r
 
+alphaRename :: Eq var => var -> var -> LExpr var -> LExpr var
+alphaRename before after (LVar var)
+    | var == before = LVar after
+    | otherwise = LVar var
+alphaRename before after (LAbs x e)
+    | x == before = LAbs after (alphaRename before after e)
+    | otherwise = LAbs x (alphaRename before after e)
+alphaRename before after (LApp e1 e2)
+    = LApp (alphaRename before after e1) (alphaRename before after e2)
+
 evalLambda :: LExpr Var -> LExpr Var
 evalLambda = unRename . go M.empty . rename
   where
@@ -295,7 +305,7 @@ evalLambda = unRename . go M.empty . rename
             var@LVar{} -> LApp var e2'
             app@LApp{} -> LApp app e2'
 
--- Rename all variables, so that capture-avoiding substitution is
+-- Give all variables unique names, so that capture-avoiding substitution is
 -- unnecessary.
 rename :: Ord var => LExpr var -> LExpr (var, Integer)
 rename = flip evalState M.empty . enumerate
@@ -305,19 +315,18 @@ rename = flip evalState M.empty . enumerate
         multiplicity <- gets (M.lookup x)
         case multiplicity of
             Just index -> pure (LVar (x, index))
-            Nothing    -> do modify (M.insert x 0)
-                             pure (LVar (x, 0))
+            Nothing -> modify (M.insert x 0) >> pure (LVar (x, 0))
     enumerate (LAbs x e) = do
         multiplicity <- gets (M.lookup x)
         let xIndex = case multiplicity of
                 Just index -> index+1
-                _otherwise -> 0
+                Nothing -> 0
         modify (M.insert x xIndex)
         LAbs (x, xIndex) <$> enumerate e
     enumerate (LApp e1 e2) = liftA2 LApp (enumerate e1) (enumerate e2)
 
 unRename :: LExpr (Var, Integer) -> LExpr Var
-unRename (LVar (Var var, 0)) = LVar (Var var)
+-- unRename (LVar (Var var, 0)) = LVar (Var var)
 unRename (LVar (Var var, i)) = LVar (Var (var <> T.pack (show i)))
 unRename (LAbs (var, _) e)   = LAbs var (unRename e)
 unRename (LApp e1 e2)        = LApp (unRename e1) (unRename e2)

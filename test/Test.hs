@@ -6,6 +6,8 @@ module Main (main) where
 
 import Lib
 
+import Numeric.Natural
+
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -73,3 +75,9 @@ testProgram
     -> TestTree
 testProgram name expected input
   = testCase name (assertEqual "" expected (evalLambda input))
+
+nat :: Natural -> LExpr Var
+nat = LAbs "f" . LAbs "x" . go
+  where
+    go 0 = LVar "x"
+    go n = LApp (LVar "f") (go (n-1))
