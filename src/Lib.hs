@@ -6,7 +6,6 @@ module Lib where
 
 
 import           Control.Applicative
-import           Control.Monad.State
 import           Data.Char
 import           Data.Coerce
 import           Data.Map                                (Map)
@@ -235,17 +234,6 @@ tok p = p <* P.space
 parenthesized :: Parser a -> Parser a
 parenthesized = P.between (tok (P.char '(')) (tok (P.char ')'))
 
-parseLambdaTest :: Text -> IO ()
-parseLambdaTest input = do
-    putStrLn ("Parse: " ++ T.unpack input)
-    putStrLn ""
-    case parseLambda input of
-        Left err -> do
-            putStrLn "ERROR"
-            putStrLn err
-        Right r -> do
-            print r
-
 parseSki :: Text -> Either String SExpr
 parseSki input = case P.parse (sExprP <* P.eof) ("SK expression" :: String) input of
     Left err -> Left (P.parseErrorPretty err)
@@ -259,39 +247,30 @@ sExprP = do
         [x]    -> pure x
         s:tuff -> pure (sApp s tuff)
   where
-    sP = tok (P.oneOf ("sS" :: String)) *> pure S
-    kP = tok (P.oneOf ("kK" :: String)) *> pure K
+    sP = tok (P.char' 's') *> pure S
+    kP = tok (P.char' 'k') *> pure K
     term = sP <|> kP <|> parenthesized sExprP
 
     sApp :: SExpr -> [SExpr] -> SExpr
     sApp f [] = f
     sApp f (x:xs) = sApp (SApp f x) xs
 
-parseSkiTest :: Text -> IO ()
-parseSkiTest input = do
-    putStrLn ("Parse: " ++ T.unpack input)
-    putStrLn ""
-    case parseSki input of
-        Left err -> do
-            putStrLn "ERROR"
-            putStrLn err
-        Right r -> do
-            print r
-
-alphaRename :: Eq var => var -> var -> LExpr var -> LExpr var
-alphaRename before after (LVar var)
-    | var == before = LVar after
-    | otherwise = LVar var
-alphaRename before after (LAbs x e)
-    | x == before = LAbs after (alphaRename before after e)
-    | otherwise = LAbs x (alphaRename before after e)
-alphaRename before after (LApp e1 e2)
-    = LApp (alphaRename before after e1) (alphaRename before after e2)
+-- Rename all free occurrences of a variable in a term.
+substitute :: Eq var => var -> var -> LExpr var -> LExpr var
+substitute before after = go
+  where
+    go (LVar var)
+        | var == before = LVar after
+        | otherwise = LVar var
+    go (LAbs var e)
+        | var == before = LAbs var e
+        | otherwise = LAbs var (go e)
+    go (LApp e1 e2) = LApp (go e1) (go e2)
 
 evalLambda :: LExpr Var -> LExpr Var
-evalLambda = unRename . go M.empty . rename
+evalLambda = go M.empty
   where
-    go :: Map (Var,Integer) (LExpr (Var,Integer)) -> LExpr (Var,Integer) -> LExpr (Var,Integer)
+    go :: Map Var (LExpr Var) -> LExpr Var -> LExpr Var
     go env lVar@(LVar var) = case M.lookup var env of
         Just replacement -> replacement
         Nothing          -> lVar
@@ -304,32 +283,6 @@ evalLambda = unRename . go M.empty . rename
             LAbs x e1' -> go (M.insert x e2' env) e1'
             var@LVar{} -> LApp var e2'
             app@LApp{} -> LApp app e2'
-
--- Give all variables unique names, so that capture-avoiding substitution is
--- unnecessary.
-rename :: Ord var => LExpr var -> LExpr (var, Integer)
-rename = flip evalState M.empty . enumerate
-  where
-    enumerate :: Ord var => LExpr var -> State (Map var Integer) (LExpr (var, Integer))
-    enumerate (LVar x) = do
-        multiplicity <- gets (M.lookup x)
-        case multiplicity of
-            Just index -> pure (LVar (x, index))
-            Nothing -> modify (M.insert x 0) >> pure (LVar (x, 0))
-    enumerate (LAbs x e) = do
-        multiplicity <- gets (M.lookup x)
-        let xIndex = case multiplicity of
-                Just index -> index+1
-                Nothing -> 0
-        modify (M.insert x xIndex)
-        LAbs (x, xIndex) <$> enumerate e
-    enumerate (LApp e1 e2) = liftA2 LApp (enumerate e1) (enumerate e2)
-
-unRename :: LExpr (Var, Integer) -> LExpr Var
--- unRename (LVar (Var var, 0)) = LVar (Var var)
-unRename (LVar (Var var, i)) = LVar (Var (var <> T.pack (show i)))
-unRename (LAbs (var, _) e)   = LAbs var (unRename e)
-unRename (LApp e1 e2)        = LApp (unRename e1) (unRename e2)
 
 -- Broken :-(
 factorialLambda :: LExpr Var

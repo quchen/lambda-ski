@@ -43,6 +43,7 @@ test-suite lambda-ski-test
         , tasty
         , tasty-hunit
         , HUnit
+        , text
     ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
     type:                exitcode-stdio-1.0
     hs-source-dirs:      test
