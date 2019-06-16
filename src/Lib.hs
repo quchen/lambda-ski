@@ -177,27 +177,13 @@ unsafeEnormousize n = foldr (.) id (replicate n (skiToLambda . unsafeFromSuccess
 
 skiToLambda :: SExpr -> LExpr Var
 skiToLambda = \case
-    S        -> lAbs ["f","g","x"]
-                     (lApp (LVar "f") [LVar "x", LApp (LVar "g") (LVar "x")])
-    K        -> lAbs ["x","y"] (LVar "x")
+    S        -> unsafeParseLambda "λf g x. f x (g x)"
+    K        -> unsafeParseLambda "λx _. x"
     SApp f x -> LApp (skiToLambda f) (skiToLambda x)
 
-lApp :: LExpr var -> [LExpr var] -> LExpr var
-lApp f [] = f
-lApp f (x:xs) = lApp (LApp f x) xs
-
-lAbs :: [var] -> LExpr var -> LExpr var
-lAbs xs e = foldr LAbs e xs
-
 -- Y combinator
--- λf. ((λx. (f (x x))) (λx. (f (x x))))
 ycL :: LExpr Var
-ycL = LAbs "f" (LApp (LAbs "x" (LApp (LVar "f")
-                                     (LApp (LVar "x")
-                                           (LVar "x"))))
-                     (LAbs "x" (LApp (LVar "f")
-                                     (LApp (LVar "x")
-                                           (LVar "x")))))
+ycL = unsafeParseLambda "λf. (λx. f (x x)) (λx. f (x x))"
 
 parseLambda :: Text -> Either String (LExpr Var)
 parseLambda input = case P.parse (P.space *> lExprP <* P.eof) ("λ expression" :: String) input of
@@ -228,6 +214,13 @@ lExprP = do
       where
         variableCharP = P.satisfy (\c -> (isAlphaNum c || isSymbol c || c `elem` ("_'<>+&-*/[]{}" :: String)) && c `notElem` ("λ\\." :: String))
 
+    lApp :: LExpr var -> [LExpr var] -> LExpr var
+    lApp f [] = f
+    lApp f (x:xs) = lApp (LApp f x) xs
+
+    lAbs :: [var] -> LExpr var -> LExpr var
+    lAbs xs e = foldr LAbs e xs
+
 tok :: Parser a -> Parser a
 tok p = p <* P.space
 
@@ -255,7 +248,9 @@ sExprP = do
     sApp f [] = f
     sApp f (x:xs) = sApp (SApp f x) xs
 
--- Rename all free occurrences of a variable in a term.
+-- | Rename all free occurrences of a variable in a term. If the replacement
+-- contains free variables that are bound in the expression this might lead to
+-- capturing substitution!
 substitute :: Eq var => var -> var -> LExpr var -> LExpr var
 substitute before after = go
   where
@@ -283,43 +278,3 @@ evalLambda = go M.empty
             LAbs x e1' -> go (M.insert x e2' env) e1'
             var@LVar{} -> LApp var e2'
             app@LApp{} -> LApp app e2'
-
--- Broken :-(
-factorialLambda :: LExpr Var
-factorialLambda = unsafeParseLambda "\
-    \ (λpred mul true false Y.                    \
-    \     (λisZero.                               \
-    \         Y (λrec n. (isZero n)               \
-    \                    n                        \
-    \                    (mul n (rec (pred n)))   \
-    \           )                                 \
-    \     )                                       \
-    \     (λn. n (λ_. false) true)                \
-    \ )                                           \
-    \ (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u)) \
-    \ (λm n f x. m (n f) x)                       \
-    \ (λt _. t)                                   \
-    \ (λ_ f. f)                                   \
-    \ (λf. (λx. f (x x)) (λx. f (x x)))           \
-    \ (λf x. f (f (f x)))                         \
-    \"
-
--- Broken :-(
-fiboLambda :: LExpr Var
-fiboLambda = unsafeParseLambda
-    " (λsucc pred true false Y 1 2 isZero add sub leq. \
-    \     Y (λrec n. (leq n 1)                         \
-    \                n                                 \
-    \                (add (rec (sub n 1))              \
-    \                         (rec (sub n 2)))))       \
-    \ (λn f x. f (n f x))                              \
-    \ (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u))      \
-    \ (λt _. t)                                        \
-    \ (λ_ f. f)                                        \
-    \ (λf. (λx. f (x x)) (λx. f (x x)))                \
-    \ (λf x. f x)                                      \
-    \ (λf x. f (f x))                                  \
-    \ (λn. n (λ_. false) true)                         \
-    \ (λm n. m succ n)                                 \
-    \ (λm n. n pred m)                                 \
-    \ (λm n. isZero (sub m n))                         "
