@@ -8,10 +8,10 @@ module Lib where
 import           Control.Applicative
 import           Data.Char
 import           Data.Coerce
-import           Data.Maybe
+import           Data.Functor
 import           Data.Map                                (Map)
-import Data.Functor
 import qualified Data.Map                                as M
+import           Data.Maybe
 import           Data.Set                                (Set)
 import qualified Data.Set                                as S
 import           Data.String
@@ -19,9 +19,9 @@ import           Data.Text                               (Text)
 import qualified Data.Text                               as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.String
-import qualified Text.Megaparsec                         as P
-import qualified Text.Megaparsec.Char                         as P
 import           Text.Megaparsec                         (Parsec, (<?>))
+import qualified Text.Megaparsec                         as P
+import qualified Text.Megaparsec.Char                    as P
 
 
 
