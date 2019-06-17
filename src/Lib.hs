@@ -8,9 +8,10 @@ module Lib where
 import           Control.Applicative
 import           Data.Char
 import           Data.Coerce
+import           Data.Maybe
 import           Data.Map                                (Map)
+import Data.Functor
 import qualified Data.Map                                as M
-import           Data.Semigroup
 import           Data.Set                                (Set)
 import qualified Data.Set                                as S
 import           Data.String
@@ -18,9 +19,9 @@ import           Data.Text                               (Text)
 import qualified Data.Text                               as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.String
-import           Text.Megaparsec                         ((<?>))
 import qualified Text.Megaparsec                         as P
-import           Text.Megaparsec.Text                    (Parser)
+import qualified Text.Megaparsec.Char                         as P
+import           Text.Megaparsec                         (Parsec, (<?>))
 
 
 
@@ -117,7 +118,7 @@ lambdaToSki = slToS . go . lToSl
     go = \case
 
         -- T[x] => x
-        e@SLVar{}               -> e
+        e@SLVar{} -> e
 
         -- T[(E₁ E₂)] => (T[E₁] T[E₂])
         SLApp f x -> SLApp (go f) (go x)
@@ -187,7 +188,7 @@ ycL = unsafeParseLambda "λf. (λx. f (x x)) (λx. f (x x))"
 
 parseLambda :: Text -> Either String (LExpr Var)
 parseLambda input = case P.parse (P.space *> lExprP <* P.eof) ("λ expression" :: String) input of
-    Left err -> Left (P.parseErrorPretty err)
+    Left err -> Left (P.errorBundlePretty err)
     Right r -> Right r
 
 unsafeParseLambda :: Text -> LExpr Var
@@ -195,7 +196,7 @@ unsafeParseLambda input = case parseLambda input of
     Left err -> error ("unsafeParseLambda parse error: " ++ err)
     Right r -> r
 
-lExprP :: Parser (LExpr Var)
+lExprP :: Parsec Text Text (LExpr Var)
 lExprP = do
     stuff <- P.some term
     case stuff of
@@ -215,24 +216,26 @@ lExprP = do
         variableCharP = P.satisfy (\c -> (isAlphaNum c || isSymbol c || c `elem` ("_'<>+&-*/[]{}" :: String)) && c `notElem` ("λ\\." :: String))
 
     lApp :: LExpr var -> [LExpr var] -> LExpr var
-    lApp f [] = f
-    lApp f (x:xs) = lApp (LApp f x) xs
+    lApp = foldl LApp
 
     lAbs :: [var] -> LExpr var -> LExpr var
     lAbs xs e = foldr LAbs e xs
 
-tok :: Parser a -> Parser a
+tok :: Parsec Text Text a -> Parsec Text Text a
 tok p = p <* P.space
 
-parenthesized :: Parser a -> Parser a
+parenthesized :: Parsec Text Text a -> Parsec Text Text a
 parenthesized = P.between (tok (P.char '(')) (tok (P.char ')'))
 
 parseSki :: Text -> Either String SExpr
 parseSki input = case P.parse (sExprP <* P.eof) ("SK expression" :: String) input of
-    Left err -> Left (P.parseErrorPretty err)
+    Left err -> Left (P.errorBundlePretty err)
     Right r -> Right r
 
-sExprP :: Parser SExpr
+instance P.ShowErrorComponent Text where
+    showErrorComponent = T.unpack
+
+sExprP :: Parsec Text Text SExpr
 sExprP = do
     stuff <- P.some term
     case stuff of
@@ -240,13 +243,12 @@ sExprP = do
         [x]    -> pure x
         s:tuff -> pure (sApp s tuff)
   where
-    sP = tok (P.char' 's') *> pure S
-    kP = tok (P.char' 'k') *> pure K
+    sP = tok (P.char' 's') $> S
+    kP = tok (P.char' 'k') $> K
     term = sP <|> kP <|> parenthesized sExprP
 
     sApp :: SExpr -> [SExpr] -> SExpr
-    sApp f [] = f
-    sApp f (x:xs) = sApp (SApp f x) xs
+    sApp = foldl SApp
 
 -- | Rename all free occurrences of a variable in a term. If the replacement
 -- contains free variables that are bound in the expression this might lead to
@@ -266,9 +268,7 @@ evalLambda :: LExpr Var -> LExpr Var
 evalLambda = go M.empty
   where
     go :: Map Var (LExpr Var) -> LExpr Var -> LExpr Var
-    go env lVar@(LVar var) = case M.lookup var env of
-        Just replacement -> replacement
-        Nothing          -> lVar
+    go env lVar@(LVar var) = fromMaybe lVar (M.lookup var env)
 
     go env (LAbs x e) = LAbs x (go (M.delete x env) e)
 
