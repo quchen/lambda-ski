@@ -14,12 +14,15 @@
 
 # Sometimes a »case« can be clearer
 - ignore: {name: "Use fromMaybe"}
+- ignore: {name: "Replace case with fromMaybe"}
 - ignore: {name: "Use if"}
 
 # Obfuscation much?
 - ignore: {name: "Use uncurry"}
 - ignore: {name: "Use first"}
 - ignore: {name: "Use second"}
+- ignore: {name: "Use <$>"}
+- ignore: {name: "Use String"}
 
 # I don’t like $
 - error:
@@ -49,4 +52,4 @@
     lhs: return
     rhs: pure
 
-
+- ignore: {name: "Use lambda-case"}
