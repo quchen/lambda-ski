@@ -12,8 +12,10 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 import Convert
-import DeBruijn as B
-import Nominal  as N
+import DeBruijn        as B
+import ExamplePrograms
+import Nominal         as N
+import Ski             as S
 
 
 
@@ -53,48 +55,12 @@ tests = testGroup "Lambda SKI testsuite"
                 "(λ(λ1(0 0)) (λ1(0 0)))"
             ]
         , testGroup "Nominal → De Bruijn → Nominal"
-            [ testNominalToDeBruijnAndBack Nothing "λx y z.z y x"
-            , testNominalToDeBruijnAndBack Nothing "λ_ x.x"
-            , testNominalToDeBruijnAndBack Nothing "λok. (λx. x) ok"
-            , testNominalToDeBruijnAndBack (Just "Y") "λf. (λx. f (x x)) (λx. f (x x))"
-            , testNominalToDeBruijnAndBack (Just "factorial")
-                " (λ-1 * true false Y 1.                      \
-                \     (λ =0.                                  \
-                \         Y (λrec n. (=0 n)                   \
-                \                    1                        \
-                \                    (* n (rec (-1 n)))       \
-                \           )                                 \
-                \     )                                       \
-                \     (λn. n (λ_. false) true)                \
-                \ )                                           \
-                \ (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u)) \
-                \ (λm n f x. m (n f) x)                       \
-                \ (λt _. t)                                   \
-                \ (λ_ f. f)                                   \
-                \ (λf. (λx. f (x x)) (λx. f (x x)))           \
-                \ (λf x. f x)                                 "
-            , testNominalToDeBruijnAndBack (Just "Fibonacci")
-                " (λ +1 -1 true false Y 1.                       \
-                \     (λ =0 + -.                                 \
-                \         (λ <= 2.                               \
-                \             Y (λrec n. (<= n 1)                \
-                \                        n                       \
-                \                        (+ (rec (- n 1))        \
-                \                                (rec (- n 2)))) \
-                \         )                                      \
-                \         (λm n. =0 (- m n))                     \
-                \         (+ 1 1)                                \
-                \     )                                          \
-                \     (λn. n (λ_. false) true)                   \
-                \     (λm n. m +1 n)                             \
-                \     (λm n. n -1 m)                             \
-                \ )                                              \
-                \ (λn f x. f (n f x))                            \
-                \ (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u))    \
-                \ (λt _. t)                                      \
-                \ (λ_ f. f)                                      \
-                \ (λf. (λx. f (x x)) (λx. f (x x)))              \
-                \ (λf x. f x)                                    "
+            [ testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λx y z.z y x")
+            , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λ_ x.x")
+            , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λok. (λx. x) ok")
+            , testNominalToDeBruijnAndBack (Just "Y") (N.unsafeParse "λf. (λx. f (x x)) (λx. f (x x))")
+            , testNominalToDeBruijnAndBack (Just "factorial") factorial
+            , testNominalToDeBruijnAndBack (Just "Fibonacci") fibonacci
             ]
         ]
     , testGroup "Evaluation"
@@ -116,12 +82,47 @@ tests = testGroup "Lambda SKI testsuite"
                 "123"
             ]
         , testGroup "Nominal → De Bruijn ⇝ De Bruijn → Nominal"
-            [ testReduceNominalViaDeBruijn Nothing "(λx. x) (λok. ok)" "(λok. ok)"
+            [ testReduceNominalViaDeBruijn
+                Nothing
+                (N.unsafeParse "(λx. x) (λok. ok)")
+                "(λok. ok)"
             , testReduceNominalViaDeBruijn
                 (Just "Y (const ok)")
-                "(λf. (λx. f (x x)) (λx. f (x x))) (λ_. (λok. ok))"
+                (N.unsafeParse "(λf. (λx. f (x x)) (λx. f (x x))) (λ_ ok. ok)")
                 "λok. ok"
             , testReduceNominalViaDeBruijn
+                (Just "2 + 1")
+                (N.unsafeParse
+                    " (λ+1 1 2.           \
+                    \     (λ+.            \
+                    \         + 2 1       \
+                    \     )               \
+                    \     (λm n. m +1 n)  \
+                    \ )                   \
+                    \ (λn f x. f (n f x)) \
+                    \ (λf x. f x)         \
+                    \ (λf x. f (f x))     ")
+                "λf x. f (f (f x))"
+            , testReduceNominalViaDeBruijn
+                (Just "factorial(3)")
+                (N.EApp factorial (N.unsafeParse "λf x. f (f (f x))"))
+                "λf x. f (f (f (f (f (f x)))))"
+            , testReduceNominalViaDeBruijn
+                (Just "fibonacci(6)")
+                (N.EApp fibonacci (N.unsafeParse "λf x. f (f (f (f (f (f x)))))"))
+                "λf x. f (f (f (f (f (f (f (f x)))))))"
+            ]
+        ]
+        , testGroup "Nominal → SKICB ⇝ SKICB"
+            [ testReduceSki
+                Nothing
+                "(λx. x) (λok. ok)"
+                "(λok. ok)"
+            , testReduceSki
+                (Just "Y (const ok)")
+                "(λf. (λx. f (x x)) (λx. f (x x))) (λ_ ok. ok)"
+                "λok. ok"
+            , testReduceSki
                 (Just "2 + 1")
                 " (λ+1 1 2.           \
                 \     (λ+.            \
@@ -133,54 +134,10 @@ tests = testGroup "Lambda SKI testsuite"
                 \ (λf x. f x)         \
                 \ (λf x. f (f x))     "
                 "λf x. f (f (f x))"
-            , testReduceNominalViaDeBruijn
-                (Just "factorial(3)")
-                " (λ-1 * true false Y 1.                      \
-                \     (λ =0.                                  \
-                \         Y (λrec n. (=0 n)                   \
-                \                    1                        \
-                \                    (* n (rec (-1 n)))       \
-                \           )                                 \
-                \     )                                       \
-                \     (λn. n (λ_. false) true)                \
-                \ )                                           \
-                \ (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u)) \
-                \ (λm n f x. m (n f) x)                       \
-                \ (λt _. t)                                   \
-                \ (λ_ f. f)                                   \
-                \ (λf. (λx. f (x x)) (λx. f (x x)))           \
-                \ (λf x. f x)                                 \
-                \ (λf x. f (f (f x)))                         "
-                "λf x. f (f (f (f (f (f x)))))"
-            , testReduceNominalViaDeBruijn
-                (Just "fibonacci(6)")
-                " (λ +1 -1 true false Y 1.                       \
-                \     (λ =0 + -.                                 \
-                \         (λ <= 2.                               \
-                \             Y (λrec n. (<= n 1)                \
-                \                        n                       \
-                \                        (+ (rec (- n 1))        \
-                \                                (rec (- n 2)))) \
-                \         )                                      \
-                \         (λm n. =0 (- m n))                     \
-                \         (+ 1 1)                                \
-                \     )                                          \
-                \     (λn. n (λ_. false) true)                   \
-                \     (λm n. m +1 n)                             \
-                \     (λm n. n -1 m)                             \
-                \ )                                              \
-                \ (λn f x. f (n f x))                            \
-                \ (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u))    \
-                \ (λt _. t)                                      \
-                \ (λ_ f. f)                                      \
-                \ (λf. (λx. f (x x)) (λx. f (x x)))              \
-                \ (λf x. f x)                                    \
-                \ (λf x. f (f (f (f (f (f x))))))                "
-                "λf x. f (f (f (f (f (f (f (f x)))))))"
             ]
-        ]
         , testGroup "Hello, world!"
-            [ testHelloWorld
+            [ testHelloWorldNominal
+            , testHelloWorldSki
             ]
     ]
 
@@ -198,11 +155,10 @@ testNominalToDeBruijn inputSrc expectedSrc = testCase testName test
     actual = unsafeNominalToDeBruijn (N.unsafeParse inputSrc)
     test = assertEqual "" expected actual
 
-testNominalToDeBruijnAndBack :: Maybe TestName -> Text -> TestTree
-testNominalToDeBruijnAndBack mTestName inputSrc = testCase testName test
+testNominalToDeBruijnAndBack :: Maybe TestName -> N.Expr -> TestTree
+testNominalToDeBruijnAndBack mTestName nominal = testCase testName test
   where
-    testName = fromMaybe (T.unpack inputSrc) mTestName
-    nominal = N.unsafeParse inputSrc
+    testName = fromMaybe (show nominal) mTestName
     nominalAgain = deBruijnToNominal (unsafeNominalToDeBruijn nominal)
     test = assertEqual "" nominal nominalAgain
 
@@ -214,20 +170,54 @@ testReduceDeBruijn mTestName inputSrc expectedSrc = testCase testName test
     expected = B.unsafeParse expectedSrc
     test = assertEqual "" expected actual
 
-testReduceNominalViaDeBruijn :: Maybe TestName -> Text -> Text -> TestTree
-testReduceNominalViaDeBruijn mTestName inputSrc expectedSrc = testCase testName test
+testReduceNominalViaDeBruijn :: Maybe TestName -> N.Expr -> Text -> TestTree
+testReduceNominalViaDeBruijn mTestName input expectedSrc = testCase testName test
   where
-    testName = fromMaybe (T.unpack inputSrc) mTestName
-    actual = (deBruijnToNominal . eval . unsafeNominalToDeBruijn . N.unsafeParse) inputSrc
+    testName = fromMaybe (show input) mTestName
+    actual = (deBruijnToNominal . eval . unsafeNominalToDeBruijn) input
     expected = N.unsafeParse expectedSrc
     test = assertEqual "" expected actual
 
-testHelloWorld :: TestTree
-testHelloWorld = testCase "Lambda calculus version" test
+testReduceSki :: Maybe TestName -> Text -> Text -> TestTree
+testReduceSki mTestName nominalInputSrc expectedNominalSrc = testCase testName test
+  where
+    testName = fromMaybe (T.unpack nominalInputSrc) mTestName
+    actual = S.normalForm (unsafeNominalToSki (N.unsafeParse nominalInputSrc))
+    expected = unsafeNominalToSki (N.unsafeParse expectedNominalSrc)
+    test = assertEqual "" expected actual
+
+testHelloWorldNominal :: TestTree
+testHelloWorldNominal = testCase "Nominal lambda calculus" test
   where
     test = assertEqual "" expected actual
     expected = "Hello, world!\n"
-    actual = marshal (deBruijnToNominal (normalForm (unsafeNominalToDeBruijn helloWorld)))
+    actual = marshal (deBruijnToNominal (B.normalForm (unsafeNominalToDeBruijn helloWorld)))
+
+    marshal :: N.Expr -> String
+    marshal (N.EAbs _ e) = marshal e
+    marshal (N.EApp (N.EApp (N.EVar (Var "hask_outChr")) increments) cont)
+      = let char (N.EApp (N.EVar (Var "hask_succ")) rest) = succ (char rest)
+            char (N.EVar (Var "hask_0")) = minBound
+            char nope = error ("Bad increment: " ++ take 128 ((T.unpack . T.unwords . map T.strip . T.lines . T.pack . show) nope))
+        in char increments : marshal cont
+    marshal (N.EVar (Var "hask_eof")) = ""
+    marshal nope = error ("Marshalling broken or bad λAST: " ++ take 128 ((T.unpack . T.unwords . map T.strip . T.lines . T.pack . show) nope))
+
+testHelloWorldSki :: TestTree
+testHelloWorldSki = testCase "SKI calculus" test
+  where
+    test = assertEqual "" expected actual
+    expected = "Hello, world!\n"
+    actual = marshal
+        (N.EApp
+            (N.EApp
+                (N.EApp
+                    (N.EApp
+                        (skiToNominal (S.normalForm (unsafeNominalToSki helloWorld)))
+                        (N.EVar (N.Var "hask_outChr")))
+                    (N.EVar (N.Var "hask_eof")))
+                (N.EVar (N.Var "hask_succ")))
+            (N.EVar (N.Var "hask_0")))
 
     marshal :: N.Expr -> String
     marshal (N.EAbs _ e) = marshal e
@@ -237,40 +227,4 @@ testHelloWorld = testCase "Lambda calculus version" test
             char nope = error ("Bad increment: " ++ take 32 (show nope))
         in char increments : marshal cont
     marshal (N.EVar (Var "hask_eof")) = ""
-    marshal nope = error ("Marshalling broken or bad λAST: " ++ take 32 (show nope))
-
-    helloWorld :: N.Expr
-    helloWorld = N.unsafeParse
-        " (λ hask_outChr hask_succ hask_0 hask_eof.                                                     \
-        \     (λ 1 + *.                                                                                 \
-        \         (λ2 ^.                                                                                \
-        \             (λ4 8 16 32 64 print.                                                             \
-        \                 (λ H e l o , space w r d ! newline.                                           \
-        \                      H (e (l (l (o (, (space (w (o (r (l (d (! (newline hask_eof))))))))))))) \
-        \                 )                                                                             \
-        \                 (print (+ 64 8))                                                              \
-        \                 (print (+ 1 (+ 4 (+ 32 64))))                                                 \
-        \                 (print (+ 4 (+ 8 (+ 32 64))))                                                 \
-        \                 (print (+ 1 (+ 2 (+ 4 (+ 8 (+ 32 64))))))                                     \
-        \                 (print (+ 4 (+ 8 32)))                                                        \
-        \                 (print 32)                                                                    \
-        \                 (print (+ 1 (+ 2 (+ 4 (+ 16 (+ 32 64))))))                                    \
-        \                 (print (+ 2 (+ 16 (+ 32 64))))                                                \
-        \                 (print (+ 4 (+ 32 64)))                                                       \
-        \                 (print (+ 1 32))                                                              \
-        \                 (print (+ 2 8))                                                               \
-        \             )                                                                                 \
-        \             (^ 2 2)                                                                           \
-        \             (^ 2 (+ 1 2))                                                                     \
-        \             (^ 2 (+ 2 2))                                                                     \
-        \             (^ 2 (+ 1 (+ 2 2)))                                                               \
-        \             (^ 2 (+ 2 (+ 2 2)))                                                               \
-        \             (λn. hask_outChr (n hask_succ hask_0))                                            \
-        \         )                                                                                     \
-        \         (+ 1 1)                                                                               \
-        \         (λb e. e (* b) 1)                                                                     \
-        \     )                                                                                         \
-        \     (λf x. f x)                                                                               \
-        \     (λa b. λf x. a f (b f x))                                                                 \
-        \     (λa b. λf x. a (b f) x)                                                                   \
-        \ )                                                                                             "
+    marshal nope = error ("Cannot marshal value: " ++ take 32 (show nope))

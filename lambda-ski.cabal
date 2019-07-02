@@ -29,10 +29,11 @@ library
                        , Nominal
                        , Orphans
                        , Ski
+                       , ExamplePrograms
     default-language:    Haskell2010
     ghc-options:         -Wall
 
-executable lambda-ski-exe
+executable repl
     build-depends:
           base
         , lambda-ski
@@ -41,7 +42,16 @@ executable lambda-ski-exe
         , prettyprinter
         , prettyprinter-ansi-terminal
     hs-source-dirs:      app
-    main-is:             Main.hs
+    main-is:             Repl.hs
+    ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
+    default-language:    Haskell2010
+
+executable hello-ski
+    build-depends:
+          base
+        , lambda-ski
+    hs-source-dirs:      app
+    main-is:             HelloSki.hs
     ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
     default-language:    Haskell2010
 
