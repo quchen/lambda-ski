@@ -107,10 +107,12 @@ tests = testGroup "Lambda SKI testsuite"
                 (Just "factorial(3)")
                 (N.EApp factorial (N.unsafeParse "λf x. f (f (f x))"))
                 "λf x. f (f (f (f (f (f x)))))"
-            , testReduceNominalViaDeBruijn
-                (Just "fibonacci(6)")
-                (N.EApp fibonacci (N.unsafeParse "λf x. f (f (f (f (f (f x)))))"))
-                "λf x. f (f (f (f (f (f (f (f x)))))))"
+            , let n = 8
+              in testReduceNominalViaDeBruijn
+                (Just ("fibonacci(" ++ show n ++ ")"))
+                (N.EApp fibonacci (nat n))
+                (let fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
+                 in T.pack (show (nat (fibs !! n))))
             ]
         ]
         , testGroup "Nominal → SKICB ⇝ SKICB"
@@ -231,3 +233,6 @@ testHelloWorldSki = testCase "SKI calculus" test
         in char increments : marshal cont
     marshal (N.EVar (Var "hask_eof")) = ""
     marshal nope = error ("Cannot marshal value: " ++ take 32 (show nope))
+
+nat :: Int -> N.Expr
+nat n = N.unsafeParse ("λf x. " <> T.replicate n "f (" <> " x" <> T.replicate n ")")
