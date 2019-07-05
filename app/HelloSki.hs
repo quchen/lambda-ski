@@ -12,7 +12,7 @@ import qualified ExamplePrograms as Example
 main :: IO ()
 main = do
     let program = Example.helloWorld
-        programSki = unsafeNominalToSki program
+        programSki = nominalToSki program
     putStrLn "module Main (main) where"
     putStrLn ""
     putStrLn "main = hello (\\char cont -> putChar char >> cont) succ minBound (pure ())"

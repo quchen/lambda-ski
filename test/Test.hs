@@ -185,8 +185,8 @@ testReduceSki :: Maybe TestName -> Text -> Text -> TestTree
 testReduceSki mTestName nominalInputSrc expectedNominalSrc = testCase testName test
   where
     testName = fromMaybe (T.unpack nominalInputSrc) mTestName
-    actual = S.normalForm (unsafeNominalToSki (N.unsafeParse nominalInputSrc))
-    expected = unsafeNominalToSki (N.unsafeParse expectedNominalSrc)
+    actual = S.normalForm (nominalToSki (N.unsafeParse nominalInputSrc))
+    expected = nominalToSki (N.unsafeParse expectedNominalSrc)
     test = assertEqual "" expected actual
 
 testHelloWorldNominal :: TestTree
@@ -214,26 +214,17 @@ testHelloWorldSki = testCase "SKI calculus" test
   where
     test = assertEqual "" expected actual
     expected = "Hello, world!\n"
-    actual = marshal
-        (N.EApp
-            (N.EApp
-                (N.EApp
-                    (N.EApp
-                        (skiToNominal (S.normalForm (unsafeNominalToSki helloWorld)))
-                        (N.EVar (N.Var "hask_outChr")))
-                    (N.EVar (N.Var "hask_eof")))
-                (N.EVar (N.Var "hask_succ")))
-            (N.EVar (N.Var "hask_0")))
+    actual = marshal (skiToNominal (S.normalForm (nominalToSki helloWorld)))
 
     marshal :: N.Expr -> String
     marshal (N.EAbs _ e) = marshal e
     marshal (N.EApp (N.EApp (N.EVar (Var "hask_outChr")) increments) cont)
       = let char (N.EApp (N.EVar (Var "hask_succ")) rest) = succ (char rest)
             char (N.EVar (Var "hask_0")) = minBound
-            char nope = error ("Bad increment: " ++ take 32 (show nope))
+            char nope = error ("Bad increment: " ++ take 128 (show nope))
         in char increments : marshal cont
     marshal (N.EVar (Var "hask_eof")) = ""
-    marshal nope = error ("Cannot marshal value: " ++ take 32 (show nope))
+    marshal nope = error ("Cannot marshal value: " ++ take 128 (show nope))
 
 nat :: Int -> N.Expr
 nat n = N.unsafeParse ("λf x. " <> T.replicate n "f (" <> " x" <> T.replicate n ")")

@@ -7,18 +7,15 @@ module Convert (
     deBruijnToNominal,
 
     nominalToSki,
-    unsafeNominalToSki,
     skiToNominal
 ) where
 
 
 
 import           Control.Applicative
-import           Data.List
 import qualified Data.Map.Strict     as M
 import           Data.Set            (Set)
 import qualified Data.Set            as S
-import           Data.Text           (Text)
 import qualified Data.Text           as T
 import           Numeric.Natural
 
@@ -70,12 +67,7 @@ data SkiLambda
     | SLAbs N.Var SkiLambda     -- ^ λx. e
     deriving (Eq, Ord, Show)
 
-unsafeNominalToSki :: N.Expr -> S.Expr
-unsafeNominalToSki nExpr = case nominalToSki nExpr of
-    Success x -> x
-    Error errs -> error ("Cannot convert nominal to Ski! Reasons: " ++ intercalate "; " (map T.unpack errs))
-
-nominalToSki :: N.Expr -> Validation [Text] S.Expr
+nominalToSki :: N.Expr -> S.Expr
 nominalToSki = irToSki . translate . nominalToIr
   where
     nominalToIr :: N.Expr -> SkiLambda
@@ -84,16 +76,16 @@ nominalToSki = irToSki . translate . nominalToIr
         N.EApp f x -> SLApp (nominalToIr f) (nominalToIr x)
         N.EAbs x e -> SLAbs x (nominalToIr e)
 
-    irToSki :: SkiLambda -> Validation [Text] S.Expr
+    irToSki :: SkiLambda -> S.Expr
     irToSki = \case
-        SLS       -> pure S
-        SLK       -> pure K
-        SLI       -> pure I
-        SLB       -> pure B
-        SLC       -> pure C
-        e@SLVar{} -> Error ["Variable " <> T.pack (show e) <> " unconverted"]
-        SLApp f x -> liftA2 S.EApp (irToSki f) (irToSki x)
-        e@SLAbs{} -> Error ["Abstraction " <> T.pack (show e) <> " unconverted"]
+        SLS              -> S
+        SLK              -> K
+        SLI              -> I
+        SLB              -> B
+        SLC              -> C
+        SLVar (Var name) -> S.EFree name
+        SLApp f x        -> S.EApp (irToSki f) (irToSki x)
+        e@SLAbs{}        -> error ("Abstraction " <> show e <> " unconverted")
 
     translate :: SkiLambda -> SkiLambda
     translate = \case
@@ -162,24 +154,12 @@ nominalToSki = irToSki . translate . nominalToIr
         SLApp f x -> freeSL f <> freeSL x
         SLAbs x e -> S.delete x (freeSL e)
 
-data Validation e a = Error e | Success a deriving (Eq, Ord, Show)
-
-instance Functor (Validation e) where
-    fmap _ (Error e) = Error e
-    fmap f (Success a) = Success (f a)
-
-instance Semigroup e => Applicative (Validation e) where
-    pure = Success
-    Error e1  <*> Error e2  = Error (e1 <> e2)
-    Error e   <*> Success _ = Error e
-    Success _ <*> Error e   = Error e
-    Success f <*> Success x = Success (f x)
-
 skiToNominal :: S.Expr -> N.Expr
 skiToNominal = \case
-    S -> N.unsafeParse "λf g x. f x (g x)"
-    K -> N.unsafeParse "λx _. x"
-    I -> N.unsafeParse "λx. x"
-    B -> N.unsafeParse "λf g x. f (g x)"
-    C -> N.unsafeParse "λf y x. f x y"
-    S.EApp f x -> N.EApp (skiToNominal f) (skiToNominal x)
+    S            -> N.unsafeParse "λf g x. f x (g x)"
+    K            -> N.unsafeParse "λx _. x"
+    I            -> N.unsafeParse "λx. x"
+    B            -> N.unsafeParse "λf g x. f (g x)"
+    C            -> N.unsafeParse "λf y x. f x y"
+    S.EFree name -> N.EVar (N.Var name)
+    S.EApp f x   -> N.EApp (skiToNominal f) (skiToNominal x)

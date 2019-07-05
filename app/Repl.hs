@@ -42,7 +42,7 @@ main = runInputT defaultSettings (withInterrupt loop)
                         outputStrLn ""
                         outputStrLn "SKI version"
                         outputStrLn "==========="
-                        outputStrLn ((toString . S.prettyAnsi) (unsafeNominalToSki nominal))
+                        outputStrLn ((toString . S.prettyAnsi) (nominalToSki nominal))
                         outputStrLn ""
                         outputStrLn "⇝ De Bruijn"
                         outputStrLn "==========="
