@@ -44,6 +44,10 @@ main = runInputT defaultSettings (withInterrupt loop)
                         outputStrLn "==========="
                         outputStrLn ((toString . S.prettyAnsi) (nominalToSki nominal))
                         outputStrLn ""
+                        outputStrLn "⇝ SKI"
+                        outputStrLn "==========="
+                        outputStrLn ((toString . S.prettyAnsi) (S.normalForm $ nominalToSki nominal))
+                        outputStrLn ""
                         outputStrLn "⇝ De Bruijn"
                         outputStrLn "==========="
                         outputStrLn ((toString . B.prettyAnsi) evaluated)
