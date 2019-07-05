@@ -4,7 +4,6 @@
 
 module Convert (
     nominalToDeBruijn,
-    unsafeNominalToDeBruijn,
     deBruijnToNominal,
 
     nominalToSki,
@@ -29,41 +28,36 @@ import Ski      as S
 
 
 
-nominalToDeBruijn :: N.Expr -> Either (Set N.Var) B.Expr
-nominalToDeBruijn e = case freeVars e of
-    free | not (S.null free) -> Left free
-    _closed -> Right (n2b mempty e)
-
-unsafeNominalToDeBruijn :: N.Expr -> B.Expr
-unsafeNominalToDeBruijn e = case nominalToDeBruijn e of
-    Left free      -> error ("Cannot convert nominal to De Bruijn because of free variables: " ++ intercalate ", " [T.unpack name | Var name <- S.elems free])
-    Right deBruijn -> deBruijn
-
-n2b :: M.Map Var Natural -> N.Expr -> B.Expr
-n2b !levels (N.EVar var@(Var name)) = B.EVar (levels M.! var) name
-n2b levels (N.EApp f x) = B.EApp (n2b levels f) (n2b levels x)
-n2b levels (N.EAbs var body) = B.EAbs (n2b (M.insert var 0 (M.map (+1) levels)) body)
+nominalToDeBruijn :: N.Expr -> B.Expr
+nominalToDeBruijn = go mempty
+  where
+    go :: M.Map Var Natural -> N.Expr -> B.Expr
+    go !levels (N.EVar var@(Var name)) = case M.lookup var levels of
+        Just level -> B.EVar level name
+        Nothing    -> B.EVarFree name
+    go levels (N.EApp f x) = B.EApp (go levels f) (go levels x)
+    go levels (N.EAbs var body) = B.EAbs (go (M.insert var 0 (M.map (+1) levels)) body)
 
 deBruijnToNominal :: B.Expr -> N.Expr
-deBruijnToNominal = db2n 0
-
-db2n :: Natural -> B.Expr -> N.Expr
-db2n _n (B.EVar _ix name) = N.EVar (Var name)
-db2n n (B.EApp f x) = N.EApp (db2n n f) (db2n n x)
-db2n n (B.EAbs body) = N.EAbs
-    (case findBinderName n body of
-        Just var -> var
-        Nothing -> Var (T.singleton '_'))
-    (db2n n body)
+deBruijnToNominal = go 0
+  where
+    go :: Natural -> B.Expr -> N.Expr
+    go _n (B.EVar _ix name) = N.EVar (Var name)
+    go _n (B.EVarFree name) = N.EVar (Var name)
+    go n (B.EApp f x) = N.EApp (go n f) (go n x)
+    go n (B.EAbs body) = N.EAbs
+        (case findBinderName n body of
+            Just var -> var
+            Nothing -> Var (T.singleton '_'))
+        (go n body)
 
 findBinderName :: Natural -> B.Expr -> Maybe Var
 findBinderName n (B.EVar n' name)
     | n == n'   = Just (Var name)
     | otherwise = Nothing
+findBinderName _ B.EVarFree{} = Nothing
 findBinderName n (B.EApp f x) = findBinderName n f <|> findBinderName n x
 findBinderName n (B.EAbs body) = findBinderName (n+1) body
-
-
 
 data SkiLambda
     = SLS                       -- ^ S

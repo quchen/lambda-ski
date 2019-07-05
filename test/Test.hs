@@ -57,7 +57,8 @@ tests = testGroup "Lambda SKI testsuite"
         , testGroup "Nominal → De Bruijn → Nominal"
             [ testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λx y z.z y x")
             , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λ_ x.x")
-            , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λok. (λx. x) ok")
+            , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λ_. free")
+            , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λbound. (λ_. free) bound free")
             , testNominalToDeBruijnAndBack (Just "Y") (N.unsafeParse "λf. (λx. f (x x)) (λx. f (x x))")
             , testNominalToDeBruijnAndBack (Just "factorial") factorial
             , testNominalToDeBruijnAndBack (Just "Fibonacci") fibonacci
@@ -154,14 +155,14 @@ testNominalToDeBruijn inputSrc expectedSrc = testCase testName test
   where
     testName = T.unpack inputSrc
     expected = B.unsafeParse expectedSrc
-    actual = unsafeNominalToDeBruijn (N.unsafeParse inputSrc)
+    actual = nominalToDeBruijn (N.unsafeParse inputSrc)
     test = assertEqual "" expected actual
 
 testNominalToDeBruijnAndBack :: Maybe TestName -> N.Expr -> TestTree
 testNominalToDeBruijnAndBack mTestName nominal = testCase testName test
   where
     testName = fromMaybe (show nominal) mTestName
-    nominalAgain = deBruijnToNominal (unsafeNominalToDeBruijn nominal)
+    nominalAgain = deBruijnToNominal (nominalToDeBruijn nominal)
     test = assertEqual "" nominal nominalAgain
 
 testReduceDeBruijn :: Maybe TestName -> Text -> Text -> TestTree
@@ -176,7 +177,7 @@ testReduceNominalViaDeBruijn :: Maybe TestName -> N.Expr -> Text -> TestTree
 testReduceNominalViaDeBruijn mTestName input expectedSrc = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = (deBruijnToNominal . eval . unsafeNominalToDeBruijn) input
+    actual = (deBruijnToNominal . eval . nominalToDeBruijn) input
     expected = N.unsafeParse expectedSrc
     test = assertEqual "" expected actual
 
@@ -193,7 +194,7 @@ testHelloWorldNominal = testCase "Lambda calculus version, old implementation" t
   where
     test = assertEqual "" expected actual
     expected = "Hello, world!\n"
-    actual = marshal (deBruijnToNominal (B.normalForm (unsafeNominalToDeBruijn source)))
+    actual = marshal (deBruijnToNominal (B.normalForm (nominalToDeBruijn source)))
 
     marshal :: N.Expr -> String
     marshal (N.EAbs _ e) = marshal e

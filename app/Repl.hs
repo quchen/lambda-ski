@@ -2,7 +2,6 @@ module Main where
 
 
 
-import           Data.List
 import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.Terminal
@@ -28,33 +27,32 @@ main = runInputT defaultSettings (withInterrupt loop)
                 Nothing -> outputStrLn "^D"
                 Just code -> case N.parse (T.pack code) of
                     Left err -> outputStrLn ("Parse error: " ++ show err) >> loop
-                    Right nominal -> case nominalToDeBruijn nominal of
-                        Left free -> outputStrLn ("Unbound variables: " ++ intercalate ", " (foldMap (\(Var x) -> [T.unpack x]) free)) >> loop
-                        Right deBruijn -> do
-                            let evaluated = eval deBruijn
-                                nominalAgain = deBruijnToNominal evaluated
+                    Right nominal -> do
+                        let deBruijn = nominalToDeBruijn nominal
+                            evaluated = eval deBruijn
+                            nominalAgain = deBruijnToNominal evaluated
 
-                            outputStrLn "Nominal input"
-                            outputStrLn "============="
-                            outputStrLn ((toString . N.prettyAnsi) nominal)
-                            outputStrLn ""
-                            outputStrLn "→ De Bruijn"
-                            outputStrLn "==========="
-                            outputStrLn ((toString . B.prettyAnsi) deBruijn)
-                            outputStrLn ""
-                            outputStrLn "SKI version"
-                            outputStrLn "==========="
-                            outputStrLn ((toString . S.prettyAnsi) (unsafeNominalToSki nominal))
-                            outputStrLn ""
-                            outputStrLn "⇝ De Bruijn"
-                            outputStrLn "==========="
-                            outputStrLn ((toString . B.prettyAnsi) evaluated)
-                            outputStrLn ""
-                            outputStrLn "→ Nominal outout"
-                            outputStrLn "================"
-                            outputStrLn ((toString . N.prettyAnsi) nominalAgain)
+                        outputStrLn "Nominal input"
+                        outputStrLn "============="
+                        outputStrLn ((toString . N.prettyAnsi) nominal)
+                        outputStrLn ""
+                        outputStrLn "→ De Bruijn"
+                        outputStrLn "==========="
+                        outputStrLn ((toString . B.prettyAnsi) deBruijn)
+                        outputStrLn ""
+                        outputStrLn "SKI version"
+                        outputStrLn "==========="
+                        outputStrLn ((toString . S.prettyAnsi) (unsafeNominalToSki nominal))
+                        outputStrLn ""
+                        outputStrLn "⇝ De Bruijn"
+                        outputStrLn "==========="
+                        outputStrLn ((toString . B.prettyAnsi) evaluated)
+                        outputStrLn ""
+                        outputStrLn "→ Nominal outout"
+                        outputStrLn "================"
+                        outputStrLn ((toString . N.prettyAnsi) nominalAgain)
 
-                            loop )
+                        loop )
 
 toString :: Doc AnsiStyle -> String
 toString = T.unpack . renderStrict . layoutPretty defaultLayoutOptions
