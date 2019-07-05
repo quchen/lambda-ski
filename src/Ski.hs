@@ -49,6 +49,8 @@ data Expr
     | EApp Expr Expr
     deriving (Eq, Ord)
 
+infixl 9 `EApp`
+
 instance Show Expr where
     show = collapse . renderString . layoutPretty defaultLayoutOptions . pretty
       where
@@ -107,12 +109,12 @@ removeAuxiliarySymbols (EApp a b) = EApp (removeAuxiliarySymbols a) (removeAuxil
 
 normalForm :: Expr -> Expr
 normalForm (EApp e x) = case normalForm e of
-    I                 -> normalForm x
-    EApp K y          -> normalForm y
-    EApp (EApp S f) g -> normalForm (EApp (EApp f x) (EApp g x))
-    EApp (EApp B f) g -> normalForm (EApp f (EApp g x))
-    EApp (EApp C f) y -> normalForm (EApp (EApp f x) y)
-    other             -> EApp other x
+    I                   -> normalForm x
+    EApp K y            -> normalForm y
+    S `EApp` f `EApp` g -> normalForm (f `EApp` x `EApp` (g `EApp` x))
+    B `EApp` f `EApp` g -> normalForm (f `EApp` (g `EApp` x))
+    C `EApp` f `EApp` y -> normalForm (f `EApp` x `EApp` y)
+    other               -> EApp other x
 normalForm free@EFree{} = free
 normalForm S = S
 normalForm K = K
