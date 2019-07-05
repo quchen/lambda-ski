@@ -76,8 +76,6 @@ prettyPrec p (EAbs e) = parenthesize (p > 5)
         EAbs{} -> mempty
         _other -> space
 
--- a b c d = ((a b) c) d = EApp (EApp (EApp a b) c) d ===> a [b,c,d]
-
 styleByIndex :: Natural -> AnsiStyle
 styleByIndex n = case mod n 6 of
     0 -> color Red
@@ -158,12 +156,14 @@ eExprP = do
         pure (EAbs body)
 
     eVarP :: Parser Expr
-    eVarP = do
-        let dummyName = "<dummy>"
-        ix <- tok (P.some P.digitChar)
-        case readMaybe ix of
-            Just ix' -> pure (EVar ix' dummyName)
-            Nothing -> fail "Parse error"
+    eVarP = bound
+      where
+        bound = do
+            let dummyName = "<dummy>"
+            ix <- tok (P.some P.digitChar)
+            case readMaybe ix of
+                Just ix' -> pure (EVar ix' dummyName)
+                Nothing -> fail "Parse error"
 
     lApp :: Expr -> [Expr] -> Expr
     lApp = foldl EApp
