@@ -12,9 +12,8 @@ module Ski (
 
 
 import           Data.Char
-import           Data.Foldable
-import           Data.Functor
 import           Data.Text                                 (Text)
+import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.String
 import           Data.Text.Prettyprint.Doc.Render.Terminal
@@ -45,6 +44,8 @@ data Expr
         -- C = S (S (K (S (K S) K)) S) (K K)
         -- C f y x = f x y
 
+    | EFree Text -- ^ Free variable
+
     | EApp Expr Expr
     deriving (Eq, Ord)
 
@@ -70,6 +71,9 @@ prettyAnsi = go NoParens (cycle [Red, Green, Yellow, Blue, Magenta, Cyan])
     go _ _ I = "I"
     go _ _ B = "B"
     go _ _ C = "C"
+    go _ _ (EFree name) = annotate (styleByIndex (nameHash name)) (pretty name)
+      where
+        nameHash = T.foldl' (\acc char -> fromIntegral (ord char) + acc) 0
     go Parens (c:olors) app@EApp{} = annotate (color c) "(" <> go NoParens olors app <> annotate (color c) ")"
     go NoParens colors (EApp e1 e2)
       = let (hd, args) = collectArgs e1 e2
@@ -81,6 +85,16 @@ prettyAnsi = go NoParens (cycle [Red, Green, Yellow, Blue, Magenta, Cyan])
         collectArgs hd arg = (hd, [arg])
     go _ [] _ = undefined -- Exhaustiveness checker: cycle is always nonempty
 
+styleByIndex :: Int -> AnsiStyle
+styleByIndex n = case mod n 6 of
+    0 -> color Red
+    1 -> color Green
+    2 -> color Yellow
+    3 -> color Blue
+    4 -> color Magenta
+    5 -> color Cyan
+    _ -> error "Cannot happen because of modulus"
+
 -- | Remove auxiliary definitions I, C, B
 removeAuxiliarySymbols :: Expr -> Expr
 removeAuxiliarySymbols S = S
@@ -88,6 +102,7 @@ removeAuxiliarySymbols K = K
 removeAuxiliarySymbols I = unsafeParse "S K K"
 removeAuxiliarySymbols B = unsafeParse "S (K S) K"
 removeAuxiliarySymbols C = unsafeParse "S (S (K (S (K S) K)) S) (K K)"
+removeAuxiliarySymbols free@EFree{} = free
 removeAuxiliarySymbols (EApp a b) = EApp (removeAuxiliarySymbols a) (removeAuxiliarySymbols b)
 
 normalForm :: Expr -> Expr
@@ -98,6 +113,7 @@ normalForm (EApp e x) = case normalForm e of
     EApp (EApp B f) g -> normalForm (EApp f (EApp g x))
     EApp (EApp C f) y -> normalForm (EApp (EApp f x) y)
     other             -> EApp other x
+normalForm free@EFree{} = free
 normalForm S = S
 normalForm K = K
 normalForm I = I
@@ -124,12 +140,16 @@ sExprP = do
         s:tuff -> pure (sApp s tuff)
         []     -> undefined -- Exhaustiveness checker: »some« is always nonempty
   where
-    sP = tok (P.char' 's') $> S
-    kP = tok (P.char' 'k') $> K
-    iP = tok (P.char' 'i') $> I
-    bP = tok (P.char' 'b') $> B
-    cP = tok (P.char' 'c') $> C
-    term = asum [sP, kP, iP, bP, cP, parenthesized sExprP]
+    atom = do
+        name <- tok (P.many (P.noneOf ("() " :: [Char])))
+        pure (case name of
+            "s" -> S
+            "k" -> K
+            "i" -> I
+            "b" -> B
+            "c" -> C
+            free -> EFree (T.pack free))
+    term = atom P.<|> parenthesized sExprP
 
     sApp :: Expr -> [Expr] -> Expr
     sApp = foldl EApp
