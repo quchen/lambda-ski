@@ -48,37 +48,36 @@ fibonacci = N.unsafeParse
 
 helloWorld :: N.Expr
 helloWorld = N.unsafeParse
-    " (λ hask_outChr hask_eof hask_succ hask_0.                                                   \
-    \     (λ 1 + *.                                                                               \
-    \         (λ 2 ^.                                                                              \
-    \             (λ 4 8 16 32 64 print ;.                                                           \
-    \                 (λ H e l o , ␣ w r d ! LF.                                              \
-    \                      H e l l o , ␣ w o r l d ! LF ;             \
-    \                 )                                                                           \
-    \                 (print ((λ_. 2) (+ 64 8)))                                                            \
-    \                 (print ((λ_. 2) (+ 1 (+ 4 (+ 32 64)))))                                               \
-    \                 (print ((λ_. 2) (+ 4 (+ 8 (+ 32 64)))))                                               \
-    \                 (print ((λ_. 2) (+ 1 (+ 2 (+ 4 (+ 8 (+ 32 64)))))))                                   \
-    \                 (print ((λ_. 2) (+ 4 (+ 8 32))))                                                      \
-    \                 (print ((λ_. 2) 32))                                                                  \
-    \                 (print ((λ_. 2) (+ 1 (+ 2 (+ 4 (+ 16 (+ 32 64)))))))                                  \
-    \                 (print ((λ_. 2) (+ 2 (+ 16 (+ 32 64)))))                                              \
-    \                 (print ((λ_. 2) (+ 4 (+ 32 64))))                                                     \
-    \                 (print ((λ_. 2) (+ 1 32)))                                                            \
-    \                 (print ((λ_. 2) (+ 2 8)))                                                             \
-    \             )                                                                               \
-    \             (^ 2 2)                                                                         \
-    \             (^ 2 (+ 1 2))                                                                   \
-    \             (^ 2 (+ 2 2))                                                                   \
-    \             (^ 2 (+ 1 (+ 2 2)))                                                             \
-    \             (^ 2 (+ 2 (+ 2 2)))                                                             \
-    \             (λn cont. cont (hask_outChr (n hask_succ hask_0)))                                          \
-    \             hask_eof                                                                    \
-    \         )                                                                                   \
-    \         (+ 1 1)                                                                             \
-    \         (λb e. e (* b) 1)                                                                   \
-    \     )                                                                                       \
-    \     (λf x. f x)                                                                             \
-    \     (λa b. λf x. a f (b f x))                                                               \
-    \     (λa b. λf x. a (b f) x)                                                                 \
-    \ )                                                                                           "
+    " (λ hask_outChr hask_succ hask_0 hask_eof.                                                     \
+    \     (λ 1 + *.                                                                                 \
+    \         (λ2 ^.                                                                                \
+    \             (λ4 8 16 32 64 print.                                                             \
+    \                 (λ H e l o , space w r d ! newline.                                           \
+    \                      H (e (l (l (o (, (space (w (o (r (l (d (! (newline hask_eof))))))))))))) \
+    \                 )                                                                             \
+    \                 (print (+ 64 8))                                                              \
+    \                 (print (+ 1 (+ 4 (+ 32 64))))                                                 \
+    \                 (print (+ 4 (+ 8 (+ 32 64))))                                                 \
+    \                 (print (+ 1 (+ 2 (+ 4 (+ 8 (+ 32 64))))))                                     \
+    \                 (print (+ 4 (+ 8 32)))                                                        \
+    \                 (print 32)                                                                    \
+    \                 (print (+ 1 (+ 2 (+ 4 (+ 16 (+ 32 64))))))                                    \
+    \                 (print (+ 2 (+ 16 (+ 32 64))))                                                \
+    \                 (print (+ 4 (+ 32 64)))                                                       \
+    \                 (print (+ 1 32))                                                              \
+    \                 (print (+ 2 8))                                                               \
+    \             )                                                                                 \
+    \             (^ 2 2)                                                                           \
+    \             (^ 2 (+ 1 2))                                                                     \
+    \             (^ 2 (+ 2 2))                                                                     \
+    \             (^ 2 (+ 1 (+ 2 2)))                                                               \
+    \             (^ 2 (+ 2 (+ 2 2)))                                                               \
+    \             (λn. hask_outChr (n hask_succ hask_0))                                            \
+    \         )                                                                                     \
+    \         (+ 1 1)                                                                               \
+    \         (λb e. e (* b) 1)                                                                     \
+    \     )                                                                                         \
+    \     (λf x. f x)                                                                               \
+    \     (λa b. λf x. a f (b f x))                                                                 \
+    \     (λa b. λf x. a (b f) x)                                                                   \
+    \ )                                                                                             "

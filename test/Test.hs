@@ -187,21 +187,24 @@ testReduceSki mTestName nominalInputSrc expectedNominalSrc = testCase testName t
     test = assertEqual "" expected actual
 
 testHelloWorldNominal :: TestTree
-testHelloWorldNominal = testCase "Nominal lambda calculus" test
+testHelloWorldNominal = testCase "Lambda calculus version, old implementation" test
   where
     test = assertEqual "" expected actual
     expected = "Hello, world!\n"
-    actual = marshal (deBruijnToNominal (B.normalForm (unsafeNominalToDeBruijn helloWorld)))
+    actual = marshal (deBruijnToNominal (B.normalForm (unsafeNominalToDeBruijn source)))
 
     marshal :: N.Expr -> String
     marshal (N.EAbs _ e) = marshal e
     marshal (N.EApp (N.EApp (N.EVar (Var "hask_outChr")) increments) cont)
       = let char (N.EApp (N.EVar (Var "hask_succ")) rest) = succ (char rest)
             char (N.EVar (Var "hask_0")) = minBound
-            char nope = error ("Bad increment: " ++ take 128 ((T.unpack . T.unwords . map T.strip . T.lines . T.pack . show) nope))
+            char nope = error ("Bad increment: " ++ take 32 (show nope))
         in char increments : marshal cont
     marshal (N.EVar (Var "hask_eof")) = ""
-    marshal nope = error ("Marshalling broken or bad λAST: " ++ take 128 ((T.unpack . T.unwords . map T.strip . T.lines . T.pack . show) nope))
+    marshal nope = error ("Marshalling broken or bad λAST: " ++ take 32 (show nope))
+
+    source :: N.Expr
+    source = helloWorld
 
 testHelloWorldSki :: TestTree
 testHelloWorldSki = testCase "SKI calculus" test
