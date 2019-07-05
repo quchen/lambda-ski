@@ -48,8 +48,11 @@ instance Show Expr where
     showsPrec _ (EVarFree name) = shows (T.unpack name)
     showsPrec p (EApp e1 e2) = showParen (p > 10)
         (showsPrec 10 e1 . showChar ' ' . showsPrec (10+1) e2)
-    showsPrec p (EAbs e) = showParen (p > 5)
-        (showString "λ " . showsPrec 5 e)
+    showsPrec p (EAbs e) = showParen (p > 5) (showChar 'λ' . spacer . showsPrec 5 e)
+      where
+        spacer = case e of
+            EAbs{} -> id
+            _other -> showChar ' '
 
 instance Pretty Expr where
     pretty = unAnnotate . prettyAnsi
@@ -66,7 +69,11 @@ prettyPrec _ (EVarFree name) = annotate (styleByIndex (nameHash name)) (pretty n
 prettyPrec p (EApp e1 e2) = parenthesize (p > 10)
     (align (sep [prettyPrec 10 e1, prettyPrec (10+1) e2]))
 prettyPrec p (EAbs e) = parenthesize (p > 5)
-    ("λ " <> prettyPrec 5 e)
+    ("λ" <> spacer <>  prettyPrec 5 e)
+  where
+    spacer = case e of
+        EAbs{} -> mempty
+        _other -> space
 
 styleByIndex :: Natural -> AnsiStyle
 styleByIndex n = case mod n 6 of
