@@ -49,8 +49,8 @@ fibonacci = N.unsafeParse
 helloWorld :: N.Expr
 helloWorld = N.unsafeParse
     " (λ hask_outChr hask_succ hask_0 hask_eof.                                                     \
-    \     (λ 1 + *.                                                                                 \
-    \         (λ2 ^.                                                                                \
+    \     (λ 1 + * ^.                                                                                 \
+    \         (λ2.                                                                                \
     \             (λ4 8 16 32 64 print.                                                             \
     \                 (λ H e l o , space w r d ! newline.                                           \
     \                      H (e (l (l (o (, (space (w (o (r (l (d (! (newline hask_eof))))))))))))) \
@@ -75,9 +75,9 @@ helloWorld = N.unsafeParse
     \             (λn. hask_outChr (n hask_succ hask_0))                                            \
     \         )                                                                                     \
     \         (+ 1 1)                                                                               \
-    \         (λb e. e (* b) 1)                                                                     \
     \     )                                                                                         \
     \     (λf x. f x)                                                                               \
     \     (λa b. λf x. a f (b f x))                                                                 \
-    \     (λa b. λf x. a (b f) x)                                                                   \
+    \     (λa b. λf. a (b f))                                                                       \
+    \     (λb e. e b)                                                                               \
     \ )                                                                                             "
