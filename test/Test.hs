@@ -27,6 +27,7 @@ tests = testGroup "Lambda SKI testsuite"
     [ let eVar ix = B.EVar ix (T.pack "<dummy>")
           eApp = B.EApp
           eAbs = B.EAbs
+          eFree = B.EVarFree
       in testGroup "Parsing"
         [ testParseDeBruijn Nothing "1" (eVar 1)
         , testParseDeBruijn Nothing "1 2" (eApp (eVar 1) (eVar 2))
@@ -40,6 +41,10 @@ tests = testGroup "Lambda SKI testsuite"
                         (eAbs (eApp (eVar 1)
                                     (eApp (eVar 0)
                                           (eVar 0))))))
+        , testParseDeBruijn
+            Nothing
+            "λ (λ 1 0 (free 0))"
+            (eAbs (eAbs (eApp (eApp (eVar 1) (eVar 0)) (eApp (eFree "free") (eVar 0)))))
         ]
     , testGroup "Conversions between representations"
         [ testGroup "Nominal → De Bruijn"

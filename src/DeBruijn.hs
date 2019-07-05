@@ -34,13 +34,14 @@ data Expr
 
 instance Eq Expr where
     EVar n _ == EVar m _ = n == m
+    EVarFree n == EVarFree m = n == m
     EApp f1 x1 == EApp f2 x2 = (f1, x1) == (f2, x2)
     EAbs x == EAbs y = x == y
     _ == _ = False
 
 instance Show Expr where
     showsPrec _ (EVar n _name) = shows n
-    showsPrec _ (EVarFree name) = shows (T.unpack name)
+    showsPrec _ (EVarFree name) = showString (T.unpack name)
     showsPrec p (EApp e1 e2) = showParen (p > 10)
         (showsPrec 10 e1 . showChar ' ' . showsPrec (10+1) e2)
     showsPrec p (EAbs e) = showParen (p > 5) (showChar 'λ' . spacer . showsPrec 5 e)
@@ -156,17 +157,21 @@ eExprP = do
         pure (EAbs body)
 
     eVarP :: Parser Expr
-    eVarP = bound
+    eVarP = bound <|> free
       where
         bound = do
-            let dummyName = "<dummy>"
+            let dummyName = "<parsed>"
             ix <- tok (P.some P.digitChar)
             case readMaybe ix of
                 Just ix' -> pure (EVar ix' dummyName)
                 Nothing -> fail "Parse error"
+        free = fmap (EVarFree . T.pack) (tok (P.some (P.satisfy validVariableChar)))
 
     lApp :: Expr -> [Expr] -> Expr
     lApp = foldl EApp
+
+    validVariableChar :: Char -> Bool
+    validVariableChar c = not (isSpace c || elem c ("()λ\\." :: String))
 
 tok :: Parser a -> Parser a
 tok p = p <* P.space
