@@ -39,11 +39,6 @@ instance Eq Expr where
     _ == _ = False
 
 instance Show Expr where
-    -- show (EVar n) = "\x1b[" ++ show (mod n 6 + 31) ++ "m" ++ show n ++ "\x1b[m"
-    -- show (EApp e1 e2) = "(" ++ show e1 ++ " " ++ show e2 ++ ")"
-    -- show (EAbs e) = "λ " ++ show e
-
-    -- showsPrec _ (EVar n _name) = showString ("\x1b[" ++ show (mod n 6 + 31) ++ "m" ++ show n ++ "\x1b[m")
     showsPrec _ (EVar n _name) = shows n
     showsPrec _ (EVarFree name) = shows (T.unpack name)
     showsPrec p (EApp e1 e2) = showParen (p > 10)
@@ -66,14 +61,22 @@ prettyPrec _ (EVarFree name) = annotate (styleByIndex (nameHash name)) (pretty n
   where
     nameHash :: Text -> Natural
     nameHash = T.foldl' (\acc char -> fromIntegral (ord char) + acc) 0
-prettyPrec p (EApp e1 e2) = parenthesize (p > 10)
-    (align (sep [prettyPrec 10 e1, prettyPrec (10+1) e2]))
+prettyPrec p (EApp e1 e2)
+  = let (hd, args) = collectArgs e1 e2
+    in parenthesize (p > 10) (prettyPrec 10 hd <+> align (sep (map (prettyPrec (10+1)) args)))
+  where
+    collectArgs :: Expr -> Expr -> (Expr, [Expr])
+    collectArgs (EApp e e') arg = let (hd, args) = collectArgs e e'
+                                  in (hd, args ++ [arg])
+    collectArgs hd arg = (hd, [arg])
 prettyPrec p (EAbs e) = parenthesize (p > 5)
-    ("λ" <> spacer <>  prettyPrec 5 e)
+    ("λ" <> spacer <> prettyPrec 5 e)
   where
     spacer = case e of
         EAbs{} -> mempty
         _other -> space
+
+-- a b c d = ((a b) c) d = EApp (EApp (EApp a b) c) d ===> a [b,c,d]
 
 styleByIndex :: Natural -> AnsiStyle
 styleByIndex n = case mod n 6 of

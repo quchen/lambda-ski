@@ -71,7 +71,14 @@ prettyAnsi = go NoParens (cycle [Red, Green, Yellow, Blue, Magenta, Cyan])
     go _ _ B = "B"
     go _ _ C = "C"
     go Parens (c:olors) app@EApp{} = annotate (color c) "(" <> go NoParens olors app <> annotate (color c) ")"
-    go NoParens colors (EApp x y) = align (sep [go NoParens colors x, go Parens colors y])
+    go NoParens colors (EApp e1 e2)
+      = let (hd, args) = collectArgs e1 e2
+        in go NoParens colors hd <> align (sep (map (go Parens colors) args))
+      where
+        collectArgs :: Expr -> Expr -> (Expr, [Expr])
+        collectArgs (EApp e e') arg = let (hd, args) = collectArgs e e'
+                                      in (hd, args ++ [arg])
+        collectArgs hd arg = (hd, [arg])
     go _ [] _ = undefined -- Exhaustiveness checker: cycle is always nonempty
 
 -- | Remove auxiliary definitions I, C, B
