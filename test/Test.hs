@@ -60,7 +60,7 @@ tests = testGroup "Lambda SKI testsuite"
             , testNominalToDeBruijn
                 "λx y. y"
                 "λλ0"
-            , testNominalToDeBruijn "λok. (λx. x) ok" "(λ(λ0)0)"
+            , testNominalToDeBruijn "λy. (λx. x) y" "(λ(λ0)0)"
             , testNominalToDeBruijn
                 "λf. (λx. f (x x)) (λx. f (x x))"
                 "(λ(λ1(0 0)) (λ1(0 0)))"
@@ -96,12 +96,12 @@ tests = testGroup "Lambda SKI testsuite"
         , testGroup "Nominal → De Bruijn ⇝ De Bruijn → Nominal"
             [ testReduceNominalViaDeBruijn
                 Nothing
-                (N.unsafeParse "(λx. x) (λok. ok)")
-                "(λok. ok)"
+                (N.unsafeParse "(λx. x) ok")
+                "ok"
             , testReduceNominalViaDeBruijn
                 (Just "Y (const ok)")
-                (N.unsafeParse "(λf. (λx. f (x x)) (λx. f (x x))) (λ_ ok. ok)")
-                "λok. ok"
+                (N.unsafeParse "(λf. (λx. f (x x)) (λx. f (x x))) (λ_. ok)")
+                "ok"
             , testReduceNominalViaDeBruijn
                 (Just "2 + 1")
                 (N.unsafeParse
@@ -115,27 +115,30 @@ tests = testGroup "Lambda SKI testsuite"
                     \ (λf x. f x)         \
                     \ (λf x. f (f x))     ")
                 "λf x. f (f (f x))"
-            , testReduceNominalViaDeBruijn
-                (Just "factorial(3)")
-                (N.EApp factorial (N.unsafeParse "λf x. f (f (f x))"))
-                "λf x. f (f (f (f (f (f x)))))"
+            , let n = 5
+                  fac k = product [1..k]
+              in testReduceNominalViaDeBruijn
+                (Just ("factorial(" ++ show n ++ ")"))
+                (N.EApp factorial (nat n))
+                (T.pack (show (nat (fac n))))
             , let n = 8
+                  fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
+                  fib k = fibs !! k
               in testReduceNominalViaDeBruijn
                 (Just ("fibonacci(" ++ show n ++ ")"))
                 (N.EApp fibonacci (nat n))
-                (let fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
-                 in T.pack (show (nat (fibs !! n))))
+                (T.pack (show (nat (fib n))))
             ]
         ]
         , testGroup "Nominal → SKICB ⇝ SKICB"
             [ testReduceSki
                 Nothing
-                "(λx. x) (λok. ok)"
-                "(λok. ok)"
+                "(λx. x) ok"
+                "ok"
             , testReduceSki
                 (Just "Y (const ok)")
-                "(λf. (λx. f (x x)) (λx. f (x x))) (λ_ ok. ok)"
-                "λok. ok"
+                "(λf. (λx. f (x x)) (λx. f (x x))) (λ_. ok)"
+                "ok"
             , testReduceSki
                 (Just "2 + 1")
                 " (λ+1 1 2.           \
