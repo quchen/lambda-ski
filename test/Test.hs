@@ -45,6 +45,12 @@ tests = testGroup "Lambda SKI testsuite"
             Nothing
             "λ (λ 1 0 (free 0))"
             (eAbs (eAbs (eApp (eApp (eVar 1) (eVar 0)) (eApp (eFree "free") (eVar 0)))))
+
+        , testGroup "Source --parse--> Nominal"
+            [ testParseShow "factorial, nominal" (T.pack (show factorial)) N.parse
+            , testParseShow "fibonacci, nominal" (T.pack (show fibonacci)) N.parse
+            , testParseShow "Hello World, nominal" (T.pack (show helloWorld)) N.parse
+            ]
         ]
     , testGroup "Conversions between representations"
         [ testGroup "Nominal → De Bruijn"
@@ -230,6 +236,17 @@ testHelloWorldSki = testCase "SKI calculus" test
         in char increments : marshal cont
     marshal (N.EVar (Var "hask_eof")) = ""
     marshal nope = error ("Cannot marshal value: " ++ take 128 (show nope))
+
+testParseShow :: (Show a, Eq a) => TestName -> Text -> (Text -> Either String a) -> TestTree
+testParseShow testName input parser = testCase testName test
+  where
+    unsafeTestParse x = let Right r = parser x in r
+    expected = unsafeTestParse input
+    actual = unsafeTestParse (T.pack (show (unsafeTestParse input)))
+    test = assertEqual
+        "parse input ≠ (parse.show.parse) input"
+        expected
+        actual
 
 nat :: Int -> N.Expr
 nat n = N.EAbs (Var "f")
