@@ -232,4 +232,6 @@ testHelloWorldSki = testCase "SKI calculus" test
     marshal nope = error ("Cannot marshal value: " ++ take 128 (show nope))
 
 nat :: Int -> N.Expr
-nat n = N.unsafeParse ("λf x. " <> T.replicate n "f (" <> " x" <> T.replicate n ")")
+nat n = N.EAbs (Var "f")
+               (N.EAbs (Var "x")
+                       (iterate (N.EApp (N.EVar (Var "f"))) (N.EVar (Var "x")) !! n))
