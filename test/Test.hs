@@ -82,11 +82,11 @@ tests = testGroup "Lambda SKI testsuite"
                 "(λ(λ1(0 0)) (λ1(0 0)))"
             ]
         , testGroup "Nominal → De Bruijn → Nominal"
-            [ testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λx y z.z y x")
-            , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λ_ x.x")
-            , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λ_. free")
-            , testNominalToDeBruijnAndBack Nothing (N.unsafeParse "λbound. (λ_. free) bound free")
-            , testNominalToDeBruijnAndBack (Just "Y") (N.unsafeParse "λf. (λx. f (x x)) (λx. f (x x))")
+            [ testNominalToDeBruijnAndBack Nothing "λx y z.z y x"
+            , testNominalToDeBruijnAndBack Nothing "λ_ x.x"
+            , testNominalToDeBruijnAndBack Nothing "λ_. free"
+            , testNominalToDeBruijnAndBack Nothing "λbound. (λ_. free) bound free"
+            , testNominalToDeBruijnAndBack (Just "Y") "λf. (λx. f (x x)) (λx. f (x x))"
             , testNominalToDeBruijnAndBack (Just "factorial") factorial
             , testNominalToDeBruijnAndBack (Just "Fibonacci") fibonacci
             ]
@@ -112,38 +112,37 @@ tests = testGroup "Lambda SKI testsuite"
         , testGroup "Nominal → De Bruijn ⇝ De Bruijn → Nominal"
             [ testReduceNominalViaDeBruijn
                 Nothing
-                (N.unsafeParse "(λx. x) ok")
+                "(λx. x) ok"
                 "ok"
             , testReduceNominalViaDeBruijn
                 (Just "Y (const ok)")
-                (N.unsafeParse "(λf. (λx. f (x x)) (λx. f (x x))) (λ_. ok)")
+                "(λf. (λx. f (x x)) (λx. f (x x))) (λ_. ok)"
                 "ok"
             , testReduceNominalViaDeBruijn
                 (Just "2 + 1")
-                (N.unsafeParse
-                    " (λ+1 1 2.           \
-                    \     (λ+.            \
-                    \         + 2 1       \
-                    \     )               \
-                    \     (λm n. m +1 n)  \
-                    \ )                   \
-                    \ (λn f x. f (n f x)) \
-                    \ (λf x. f x)         \
-                    \ (λf x. f (f x))     ")
+                " (λ+1 1 2.           \
+                \     (λ+.            \
+                \         + 2 1       \
+                \     )               \
+                \     (λm n. m +1 n)  \
+                \ )                   \
+                \ (λn f x. f (n f x)) \
+                \ (λf x. f x)         \
+                \ (λf x. f (f x))     "
                 "λf x. f (f (f x))"
             , let n = 5
                   fac k = product [1..k]
               in testReduceNominalViaDeBruijn
                 (Just ("factorial(" ++ show n ++ ")"))
                 (N.EApp factorial (nat n))
-                (showT (nat (fac n)))
+                (nat (fac n))
             , let n = 8
                   fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
                   fib k = fibs !! k
               in testReduceNominalViaDeBruijn
                 (Just ("fibonacci(" ++ show n ++ ")"))
                 (N.EApp fibonacci (nat n))
-                (showT (nat (fib n)))
+                (nat (fib n))
             ]
         ]
         , testGroup "Nominal → SKICB ⇝ SKICB"
@@ -180,12 +179,11 @@ testParseDeBruijn mTestName input expected = testCase testName test
     testName = fromMaybe (T.unpack input) mTestName
     test = assertEqual "" expected (B.unsafeParse input)
 
-testNominalToDeBruijn :: Text -> Text -> TestTree
-testNominalToDeBruijn inputSrc expectedSrc = testCase testName test
+testNominalToDeBruijn :: N.Expr -> B.Expr -> TestTree
+testNominalToDeBruijn input expected = testCase testName test
   where
-    testName = T.unpack inputSrc
-    expected = B.unsafeParse expectedSrc
-    actual = nominalToDeBruijn (N.unsafeParse inputSrc)
+    testName = show input
+    actual = nominalToDeBruijn input
     test = assertEqual "" expected actual
 
 testNominalToDeBruijnAndBack :: Maybe TestName -> N.Expr -> TestTree
@@ -195,28 +193,26 @@ testNominalToDeBruijnAndBack mTestName nominal = testCase testName test
     nominalAgain = deBruijnToNominal (nominalToDeBruijn nominal)
     test = assertEqual "" nominal nominalAgain
 
-testReduceDeBruijn :: Maybe TestName -> Text -> Text -> TestTree
-testReduceDeBruijn mTestName inputSrc expectedSrc = testCase testName test
+testReduceDeBruijn :: Maybe TestName -> B.Expr -> B.Expr -> TestTree
+testReduceDeBruijn mTestName input expected = testCase testName test
   where
-    testName = fromMaybe (T.unpack inputSrc) mTestName
-    actual = eval (B.unsafeParse inputSrc)
-    expected = B.unsafeParse expectedSrc
+    testName = fromMaybe (show input) mTestName
+    actual = eval input
     test = assertEqual "" expected actual
 
-testReduceNominalViaDeBruijn :: Maybe TestName -> N.Expr -> Text -> TestTree
-testReduceNominalViaDeBruijn mTestName input expectedSrc = testCase testName test
+testReduceNominalViaDeBruijn :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
+testReduceNominalViaDeBruijn mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
     actual = (deBruijnToNominal . eval . nominalToDeBruijn) input
-    expected = N.unsafeParse expectedSrc
     test = assertEqual "" expected actual
 
-testReduceSki :: Maybe TestName -> Text -> Text -> TestTree
-testReduceSki mTestName nominalInputSrc expectedNominalSrc = testCase testName test
+testReduceSki :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
+testReduceSki mTestName input expectedNominal = testCase testName test
   where
-    testName = fromMaybe (T.unpack nominalInputSrc) mTestName
-    actual = S.normalForm (nominalToSki (N.unsafeParse nominalInputSrc))
-    expected = nominalToSki (N.unsafeParse expectedNominalSrc)
+    testName = fromMaybe (show input) mTestName
+    actual = S.normalForm (nominalToSki input)
+    expected = nominalToSki expectedNominal
     test = assertEqual "" expected actual
 
 testHelloWorldNominal :: TestTree

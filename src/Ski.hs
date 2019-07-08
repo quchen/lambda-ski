@@ -21,6 +21,7 @@ import           Data.Void
 import           Text.Megaparsec                           (Parsec)
 import qualified Text.Megaparsec                           as P
 import qualified Text.Megaparsec.Char                      as P
+import Data.String
 
 import Orphans ()
 
@@ -48,6 +49,9 @@ data Expr
 
     | EApp Expr Expr
     deriving (Eq, Ord)
+
+instance IsString Expr where
+    fromString = unsafeParse . T.pack
 
 infixl 9 `EApp`
 
@@ -101,9 +105,9 @@ styleByIndex n = case mod n 6 of
 removeAuxiliarySymbols :: Expr -> Expr
 removeAuxiliarySymbols S = S
 removeAuxiliarySymbols K = K
-removeAuxiliarySymbols I = unsafeParse "S K K"
-removeAuxiliarySymbols B = unsafeParse "S (K S) K"
-removeAuxiliarySymbols C = unsafeParse "S (S (K (S (K S) K)) S) (K K)"
+removeAuxiliarySymbols I = "S K K"
+removeAuxiliarySymbols B = "S (K S) K"
+removeAuxiliarySymbols C = "S (S (K (S (K S) K)) S) (K K)"
 removeAuxiliarySymbols free@EFree{} = free
 removeAuxiliarySymbols (EApp a b) = EApp (removeAuxiliarySymbols a) (removeAuxiliarySymbols b)
 

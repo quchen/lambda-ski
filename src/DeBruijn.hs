@@ -18,6 +18,7 @@ import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
+import           Data.String
 import           Numeric.Natural
 import           Text.Megaparsec                           (Parsec, (<?>))
 import qualified Text.Megaparsec                           as P
@@ -52,6 +53,9 @@ instance Show Expr where
 
 instance Pretty Expr where
     pretty = unAnnotate . prettyAnsi
+
+instance IsString Expr where
+    fromString = unsafeParse . T.pack
 
 prettyAnsi :: Expr -> Doc AnsiStyle
 prettyAnsi = prettyPrec 0

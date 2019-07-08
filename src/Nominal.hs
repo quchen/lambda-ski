@@ -21,6 +21,7 @@ import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.String
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
+import           Data.String
 import           Text.Megaparsec                           (Parsec, (<?>))
 import qualified Text.Megaparsec                           as P
 import qualified Text.Megaparsec.Char                      as P
@@ -35,6 +36,9 @@ data Expr
     | EApp Expr Expr
     | EAbs Var Expr
     deriving (Eq, Ord)
+
+instance IsString Expr where
+    fromString = unsafeParse . T.pack
 
 freeVars :: Expr -> Set Var
 freeVars (EVar x)   = S.singleton x
