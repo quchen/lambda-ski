@@ -24,32 +24,48 @@ main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "Lambda SKI testsuite"
-    [ let eVar ix = B.EVar ix (T.pack "<dummy>")
-          eApp = B.EApp
-          eAbs = B.EAbs
-          eFree = B.EVarFree
-      in testGroup "Parsing"
-        [ testParseDeBruijn Nothing "1" (eVar 1)
-        , testParseDeBruijn Nothing "1 2" (eApp (eVar 1) (eVar 2))
-        , testParseDeBruijn Nothing "1 2 3" (eApp (eApp (eVar 1) (eVar 2)) (eVar 3))
-        , testParseDeBruijn
-            (Just "Y = λ(λ1(0 0)) (λ1(0 0))")
-            "λ(λ1(0 0)) (λ1(0 0))"
-            (eAbs (eApp (eAbs (eApp (eVar 1)
-                                    (eApp (eVar 0)
-                                          (eVar 0))))
-                        (eAbs (eApp (eVar 1)
-                                    (eApp (eVar 0)
-                                          (eVar 0))))))
-        , testParseDeBruijn
-            Nothing
-            "λ (λ 1 0 (free 0))"
-            (eAbs (eAbs (eApp (eApp (eVar 1) (eVar 0)) (eApp (eFree "free") (eVar 0)))))
-
-        , testGroup "Source --parse--> Nominal"
-            [ testParseShow "factorial, nominal" (T.pack (show factorial)) N.parse
-            , testParseShow "fibonacci, nominal" (T.pack (show fibonacci)) N.parse
-            , testParseShow "Hello World, nominal" (T.pack (show helloWorld)) N.parse
+    [ testGroup "Parsing"
+        [ testGroup "Nominal"
+            [ testParseShowInverse "factorial" (showT factorial) N.parse
+            , testParseShowInverse "fibonacci" (showT fibonacci) N.parse
+            , testParseShowInverse "Hello World" (showT helloWorld) N.parse
+            ]
+        , testGroup "De Bruijn"
+            [ let eVar ix = B.EVar ix (T.pack "<dummy>")
+                  eApp = B.EApp
+                  eAbs = B.EAbs
+                  eFree = B.EVarFree
+              in testGroup "Handwritten"
+                [ testParseDeBruijn Nothing "1" (eVar 1)
+                , testParseDeBruijn Nothing "1 2" (eApp (eVar 1) (eVar 2))
+                , testParseDeBruijn Nothing "1 2 3" (eApp (eApp (eVar 1) (eVar 2)) (eVar 3))
+                , testParseDeBruijn
+                    (Just "Y = λ(λ1(0 0)) (λ1(0 0))")
+                    "λ(λ1(0 0)) (λ1(0 0))"
+                    (eAbs (eApp (eAbs (eApp (eVar 1)
+                                            (eApp (eVar 0)
+                                                  (eVar 0))))
+                                (eAbs (eApp (eVar 1)
+                                            (eApp (eVar 0)
+                                                  (eVar 0))))))
+                , testParseDeBruijn
+                    Nothing
+                    "λ (λ 1 0 (free 0))"
+                    (eAbs (eAbs (eApp (eApp (eVar 1) (eVar 0)) (eApp (eFree "free") (eVar 0)))))
+                ]
+            , testGroup "Example programs"
+                [ testParseShowInverse "factorial" (showT (nominalToDeBruijn factorial)) B.parse
+                , testParseShowInverse "fibonacci" (showT (nominalToDeBruijn fibonacci)) B.parse
+                , testParseShowInverse "Hello World" (showT (nominalToDeBruijn helloWorld)) B.parse
+                ]
+            ]
+        , testGroup "SK"
+            [ testGroup "Example programs"
+                [ testParseShowInverse "Y combinator" ("Y = S S K (S (K (S S (S (S S K)))) K)") S.parse
+                , testParseShowInverse "factorial" (showT (nominalToSki factorial)) S.parse
+                , testParseShowInverse "fibonacci" (showT (nominalToSki fibonacci)) S.parse
+                , testParseShowInverse "Hello World" (showT (nominalToSki helloWorld)) S.parse
+                ]
             ]
         ]
     , testGroup "Conversions between representations"
@@ -120,14 +136,14 @@ tests = testGroup "Lambda SKI testsuite"
               in testReduceNominalViaDeBruijn
                 (Just ("factorial(" ++ show n ++ ")"))
                 (N.EApp factorial (nat n))
-                (T.pack (show (nat (fac n))))
+                (showT (nat (fac n)))
             , let n = 8
                   fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
                   fib k = fibs !! k
               in testReduceNominalViaDeBruijn
                 (Just ("fibonacci(" ++ show n ++ ")"))
                 (N.EApp fibonacci (nat n))
-                (T.pack (show (nat (fib n))))
+                (showT (nat (fib n)))
             ]
         ]
         , testGroup "Nominal → SKICB ⇝ SKICB"
@@ -240,12 +256,12 @@ testHelloWorldSki = testCase "SKI calculus" test
     marshal (N.EVar (Var "hask_eof")) = ""
     marshal nope = error ("Cannot marshal value: " ++ take 128 (show nope))
 
-testParseShow :: (Show a, Eq a) => TestName -> Text -> (Text -> Either String a) -> TestTree
-testParseShow testName input parser = testCase testName test
+testParseShowInverse :: (Show a, Eq a) => TestName -> Text -> (Text -> Either String a) -> TestTree
+testParseShowInverse testName input parser = testCase testName test
   where
     unsafeTestParse x = let Right r = parser x in r
     expected = unsafeTestParse input
-    actual = unsafeTestParse (T.pack (show (unsafeTestParse input)))
+    actual = unsafeTestParse (showT (unsafeTestParse input))
     test = assertEqual
         "parse input ≠ (parse.show.parse) input"
         expected
@@ -255,3 +271,6 @@ nat :: Int -> N.Expr
 nat n = N.EAbs (Var "f")
                (N.EAbs (Var "x")
                        (iterate (N.EApp (N.EVar (Var "f"))) (N.EVar (Var "x")) !! n))
+
+showT :: Show a => a -> Text
+showT = T.pack . show

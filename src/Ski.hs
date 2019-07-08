@@ -143,7 +143,7 @@ sExprP = do
         []     -> undefined -- Exhaustiveness checker: »some« is always nonempty
   where
     atom = do
-        name <- tok (P.many (P.noneOf ("() " :: [Char])))
+        name <- tok (P.some (P.satisfy (\c -> not (isSpace c || elem c ("()" :: String)))))
         pure (case name of
             "s" -> S
             "k" -> K
