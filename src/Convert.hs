@@ -67,8 +67,8 @@ data SkiLambda
     | SLAbs N.Var SkiLambda     -- ^ λx. e
     deriving (Eq, Ord, Show)
 
-nominalToSki :: N.Expr -> S.Expr
-nominalToSki = irToSki . translate . nominalToIr
+nominalToSki :: Bool -> N.Expr -> S.Expr
+nominalToSki allowICB = irToSki . translate . nominalToIr
   where
     nominalToIr :: N.Expr -> SkiLambda
     nominalToIr = \case
@@ -102,7 +102,7 @@ nominalToSki = irToSki . translate . nominalToIr
 
         -- 4. T[λx.x] => I
         SLAbs x (SLVar y) | x == y
-            -> SLI
+            -> if allowICB then SLI else SLApp (SLApp SLS SLK) SLK
 
         -- 5. T[λx.λy.E] => T[λx.T[λy.E]] (if x occurs free in E)
         SLAbs x (SLAbs y e) | x `occursFreeIn` e
@@ -111,7 +111,7 @@ nominalToSki = irToSki . translate . nominalToIr
         SLAbs x (SLApp e1 e2)
 
             -- 6. T[λx.(E₁ E₂)] => (S T[λx.E₁] T[λx.E₂]) (if x occurs free in both E₁ and E₂)
-            | x `occursFreeIn` e1 && x `occursFreeIn` e2
+            | (allowICB && x `occursFreeIn` e1 && x `occursFreeIn` e2) || not allowICB
                 -> SLApp (SLApp SLS (translate (SLAbs x e1)))
                                     (translate (SLAbs x e2))
 

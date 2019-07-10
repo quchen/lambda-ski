@@ -36,8 +36,10 @@ backends =
     , ("ruby",       ruby      )
     , ("haskell",    haskell   )]
 
+allowICB = False
+
 helloSki :: S.Expr
-helloSki = nominalToSki
+helloSki = nominalToSki allowICB
     (N.EAbs (N.Var "extern_outChr")
      (N.EAbs (N.Var "extern_eof")
       (N.EAbs (N.Var "extern_succ")
@@ -53,10 +55,13 @@ haskell = T.unlines
     , "s f g x = f x (g x)"
     , "k x _ = x"
     , ""
-    , "i = " <> skiToHs "S K K"
-    , "b = " <> skiToHs "S (K S) K"
-    , "c = " <> skiToHs "S (S (K (S (K S) K)) S) (K K)"
-    , ""
+    , if allowICB
+        then T.unlines
+            [ "i = " <> skiToHs "S K K"
+            , "b = " <> skiToHs "S (K S) K"
+            , "c = " <> skiToHs "S (S (K (S (K S) K)) S) (K K)"
+            ]
+        else ""
     , "hello :: (char -> io -> io) -> io -> (char -> char) -> char -> io"
     , "hello = " <> skiToHs helloSki
     ]
@@ -69,10 +74,13 @@ python = T.unlines
     [ "S = lambda f: lambda g: lambda x: f(x)(g(x))"
     , "K = lambda x: lambda y: x"
     , ""
-    , "I = " <> snd (compile "S K K")
-    , "B = " <> snd (compile "S (K S) K")
-    , "C = " <> snd (compile "S (S (K (S (K S) K)) S) (K K)")
-    , ""
+    , if allowICB
+        then T.unlines
+            [ "I = " <> snd (compile "S K K")
+            , "B = " <> snd (compile "S (K S) K")
+            , "C = " <> snd (compile "S (S (K (S (K S) K)) S) (K K)")
+            ]
+        else ""
     , let (floats, trunk) = compile helloSki
       in T.unlines (concat
         [ if not (null floats)
@@ -147,10 +155,13 @@ javascript = T.unlines
     [ "S = f => g => x => f(x)(g(x));"
     , "K = x => _ => x;"
     , ""
-    , "I = " <> skiToJs "S K K" <> ";"
-    , "B = " <> skiToJs "S (K S) K" <> ";"
-    , "C = " <> skiToJs "S (S (K (S (K S) K)) S) (K K)" <> ";"
-    , ""
+    , if allowICB
+        then T.unlines
+            [ "I = " <> skiToJs "S K K" <> ";"
+            , "B = " <> skiToJs "S (K S) K" <> ";"
+            , "C = " <> skiToJs "S (S (K (S (K S) K)) S) (K K)" <> ";"
+            ]
+        else ""
     , "hello = " <> skiToJs helloSki <> ";"
     , ""
     , "process.stdout.write(hello (asc => rest => String.fromCharCode(asc) + rest) ('') (x => x+1) (0));"
@@ -169,11 +180,13 @@ ruby :: Text
 ruby = T.unlines
     [ "S = lambda { |f| lambda { |g| lambda { |x| f.call(x).call(g.call(x)) } } }"
     , "K = lambda { |x| lambda { |_| x } }"
-    , ""
-    , "I = " <> skiToRuby "S K K"
-    , "B = " <> skiToRuby "S (K S) K"
-    , "C = " <> skiToRuby "S (S (K (S (K S) K)) S) (K K)"
-    , ""
+    , if allowICB
+        then T.unlines
+            [ "I = " <> skiToRuby "S K K"
+            , "B = " <> skiToRuby "S (K S) K"
+            , "C = " <> skiToRuby "S (S (K (S (K S) K)) S) (K K)"
+            ]
+        else ""
     , "hello = " <> skiToRuby helloSki
     , ""
     , "puts(hello.call(lambda { |asc| lambda { |rest| asc.chr + rest } }).call('').call(lambda {|x| x+1}).call(0))"

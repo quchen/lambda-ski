@@ -71,9 +71,9 @@ tests = testGroup "Lambda SKI testsuite"
         , testGroup "SK"
             [ testGroup "Example programs"
                 [ testParseShowInverse "Y combinator" "Y = S S K (S (K (S S (S (S S K)))) K)" S.parse
-                , testParseShowInverse "factorial" (showT (nominalToSki factorial)) S.parse
-                , testParseShowInverse "fibonacci" (showT (nominalToSki fibonacci)) S.parse
-                , testParseShowInverse "Hello World" (showT (nominalToSki helloWorld)) S.parse
+                , testParseShowInverse "factorial" (showT (nominalToSki True factorial)) S.parse
+                , testParseShowInverse "fibonacci" (showT (nominalToSki True fibonacci)) S.parse
+                , testParseShowInverse "Hello World" (showT (nominalToSki True helloWorld)) S.parse
                 ]
             ]
         ]
@@ -240,8 +240,8 @@ testReduceSkiViaNominal :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
 testReduceSkiViaNominal mTestName input expectedNominal = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = Actual (S.normalForm (nominalToSki input))
-    expected = Expected (nominalToSki expectedNominal)
+    actual = Actual (S.normalForm (nominalToSki True input))
+    expected = Expected (nominalToSki True expectedNominal)
     test = assertEqual Nothing actual expected
 
 testHelloWorldNominal :: TestTree
@@ -266,7 +266,7 @@ testHelloWorldSki = testCase "SKI calculus" test
   where
     test = assertEqual Nothing actual expected
     expected = Expected "Hello, world!\n"
-    actual = (Actual . marshal . S.normalForm . nominalToSki) helloWorld
+    actual = (Actual . marshal . S.normalForm . nominalToSki True) helloWorld
 
     marshal :: S.Expr -> String
     marshal (S.EApp (S.EApp (S.EFree "extern_outChr") increments) cont)
