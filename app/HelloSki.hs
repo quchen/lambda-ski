@@ -4,11 +4,12 @@ module Main where
 
 
 
-import           Data.Char
 import           Control.Monad
+import           Data.Char
+import           Data.List
+import           Data.Text          (Text)
 import qualified Data.Text          as T
-import qualified Data.Text.IO          as T
-import Data.Text (Text)
+import qualified Data.Text.IO       as T
 import           System.Environment
 
 import           Convert
@@ -22,12 +23,18 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        "python3" : _    -> T.putStrLn python
-        "javascript" : _ -> T.putStrLn javascript
-        "ruby" : _       -> T.putStrLn ruby
-        "haskell" : _    -> T.putStrLn haskell
-        other : _        -> error ("Unsupported target: " <> other)
-        []               -> error "No target language specified"
+        [lang] -> case lookup lang backends of
+            Just code -> T.putStrLn code
+            Nothing -> error ("Unsupported language: " ++ lang ++ ". Options: " ++ intercalate ", " (map fst backends))
+        [] -> error ("No target language specified. Options: " ++ intercalate ", " (map fst backends))
+        _ -> error "Expecting single parameter (backend language)"
+
+backends :: [(String, Text)]
+backends =
+    [ ("python3",    python    )
+    , ("javascript", javascript)
+    , ("ruby",       ruby      )
+    , ("haskell",    haskell   )]
 
 helloSki :: S.Expr
 helloSki = nominalToSki
