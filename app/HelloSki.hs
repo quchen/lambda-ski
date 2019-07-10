@@ -112,7 +112,7 @@ python = T.unlines
                 let floatDefinition = tl_floatedOutName <> " = " <> floatBody
                 tell [floatDefinition]
                 pure tl_floatedOutName
-        pure (hd <> "(" <> tl <> ")")
+        pure (hd <> " (" <> tl <> ")")
 
     exprDepth :: S.Expr -> Int
     exprDepth (S.EApp f x) = max (exprDepth f) (1 + exprDepth x)
