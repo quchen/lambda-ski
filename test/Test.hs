@@ -8,8 +8,9 @@ import           Data.Maybe
 import           Data.Text  (Text)
 import qualified Data.Text  as T
 
-import Test.Tasty
-import Test.Tasty.HUnit
+import           Test.Tasty
+import           Test.Tasty.HUnit hiding (assertEqual)
+import qualified Test.Tasty.HUnit as HUnit
 
 import Convert
 import DeBruijn        as B
@@ -21,6 +22,14 @@ import Ski             as S
 
 main :: IO ()
 main = defaultMain tests
+
+newtype Expected a = Expected a
+newtype Actual a = Actual a
+
+-- | Type-safe version of 'HUnit.assertEqual'
+assertEqual :: (Eq a, Show a) => Maybe String -> Actual a -> Expected a -> Assertion
+assertEqual description (Actual actual) (Expected expected)
+  = HUnit.assertEqual (fromMaybe "" description) expected actual
 
 tests :: TestTree
 tests = testGroup "Lambda SKI testsuite"
@@ -61,7 +70,7 @@ tests = testGroup "Lambda SKI testsuite"
             ]
         , testGroup "SK"
             [ testGroup "Example programs"
-                [ testParseShowInverse "Y combinator" ("Y = S S K (S (K (S S (S (S S K)))) K)") S.parse
+                [ testParseShowInverse "Y combinator" "Y = S S K (S (K (S S (S (S S K)))) K)" S.parse
                 , testParseShowInverse "factorial" (showT (nominalToSki factorial)) S.parse
                 , testParseShowInverse "fibonacci" (showT (nominalToSki fibonacci)) S.parse
                 , testParseShowInverse "Hello World" (showT (nominalToSki helloWorld)) S.parse
@@ -129,7 +138,7 @@ tests = testGroup "Lambda SKI testsuite"
                 \ (λn f x. f (n f x)) \
                 \ (λf x. f x)         \
                 \ (λf x. f (f x))     "
-                "λf x. f (f (f x))"
+                (nat 3)
             , let n = 5
                   fac k = product [1..k]
               in testReduceNominalViaDeBruijn
@@ -145,16 +154,29 @@ tests = testGroup "Lambda SKI testsuite"
                 (nat (fib n))
             ]
         ]
+        , testGroup "SKICB ⇝ SKICB"
+            [ testGroup "Individual combinators"
+                [testReduceSki Nothing "I x"     "x"
+                , testReduceSki Nothing "K x y"   "x"
+                , testReduceSki Nothing "S f g x" "f x (g x)"
+                , testReduceSki Nothing "C f y x" "f x y"
+                , testReduceSki Nothing "B f g x" "f (g x)"
+                ]
+            , testGroup "Examples from Wikipedia"
+                [ testReduceSki Nothing "C I x y" "y x"
+                , testReduceSki Nothing "S (K (S I)) (S (K K) I) x y" "y x"
+                ]
+            ]
         , testGroup "Nominal → SKICB ⇝ SKICB"
-            [ testReduceSki
+            [ testReduceSkiViaNominal
                 Nothing
                 "(λx. x) ok"
                 "ok"
-            , testReduceSki
+            , testReduceSkiViaNominal
                 (Just "Y (const ok)")
                 "(λf. (λx. f (x x)) (λx. f (x x))) (λ_. ok)"
                 "ok"
-            , testReduceSki
+            , testReduceSkiViaNominal
                 (Just "2 + 1")
                 " (λ+1 1 2.           \
                 \     (λ+.            \
@@ -165,7 +187,7 @@ tests = testGroup "Lambda SKI testsuite"
                 \ (λn f x. f (n f x)) \
                 \ (λf x. f x)         \
                 \ (λf x. f (f x))     "
-                "λf x. f (f (f x))"
+                (nat 3)
             ]
         , testGroup "Hello, world!"
             [ testHelloWorldNominal
@@ -177,80 +199,83 @@ testParseDeBruijn :: Maybe TestName -> Text -> B.Expr -> TestTree
 testParseDeBruijn mTestName input expected = testCase testName test
   where
     testName = fromMaybe (T.unpack input) mTestName
-    test = assertEqual "" expected (B.unsafeParse input)
+    test = assertEqual Nothing (Actual (B.unsafeParse input)) (Expected expected)
 
 testNominalToDeBruijn :: N.Expr -> B.Expr -> TestTree
 testNominalToDeBruijn input expected = testCase testName test
   where
     testName = show input
     actual = nominalToDeBruijn input
-    test = assertEqual "" expected actual
+    test = assertEqual Nothing (Actual actual) (Expected expected)
 
 testNominalToDeBruijnAndBack :: Maybe TestName -> N.Expr -> TestTree
 testNominalToDeBruijnAndBack mTestName nominal = testCase testName test
   where
     testName = fromMaybe (show nominal) mTestName
-    nominalAgain = deBruijnToNominal (nominalToDeBruijn nominal)
-    test = assertEqual "" nominal nominalAgain
+    actual = (Actual . deBruijnToNominal . nominalToDeBruijn) nominal
+    test = assertEqual Nothing actual (Expected nominal)
 
 testReduceDeBruijn :: Maybe TestName -> B.Expr -> B.Expr -> TestTree
 testReduceDeBruijn mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = eval input
-    test = assertEqual "" expected actual
+    actual = Actual (eval input)
+    test = assertEqual Nothing actual (Expected expected)
 
 testReduceNominalViaDeBruijn :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
 testReduceNominalViaDeBruijn mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = (deBruijnToNominal . eval . nominalToDeBruijn) input
-    test = assertEqual "" expected actual
+    actual = (Actual . deBruijnToNominal . eval . nominalToDeBruijn) input
+    test = assertEqual Nothing actual (Expected expected)
 
-testReduceSki :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
-testReduceSki mTestName input expectedNominal = testCase testName test
+testReduceSki :: Maybe TestName -> S.Expr -> S.Expr -> TestTree
+testReduceSki mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = S.normalForm (nominalToSki input)
-    expected = nominalToSki expectedNominal
-    test = assertEqual "" expected actual
+    actual = Actual (S.normalForm input)
+    test = assertEqual (Just (show input ++ " ⇝")) actual (Expected expected)
+
+testReduceSkiViaNominal :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
+testReduceSkiViaNominal mTestName input expectedNominal = testCase testName test
+  where
+    testName = fromMaybe (show input) mTestName
+    actual = Actual (S.normalForm (nominalToSki input))
+    expected = Expected (nominalToSki expectedNominal)
+    test = assertEqual Nothing actual expected
 
 testHelloWorldNominal :: TestTree
 testHelloWorldNominal = testCase "Lambda calculus version, old implementation" test
   where
-    test = assertEqual "" expected actual
-    expected = "Hello, world!\n"
-    actual = marshal (deBruijnToNominal (B.normalForm (nominalToDeBruijn source)))
+    test = assertEqual Nothing actual expected
+    expected = Expected "Hello, world!\n"
+    actual = (Actual . marshal . deBruijnToNominal . B.normalForm . nominalToDeBruijn) helloWorld
 
     marshal :: N.Expr -> String
     marshal (N.EAbs _ e) = marshal e
-    marshal (N.EApp (N.EApp (N.EVar (Var "hask_outChr")) increments) cont)
-      = let char (N.EApp (N.EVar (Var "hask_succ")) rest) = succ (char rest)
-            char (N.EVar (Var "hask_0")) = minBound
-            char nope = error ("Bad increment: " ++ take 32 (show nope))
+    marshal (N.EApp (N.EApp (N.EVar (Var "extern_outChr")) increments) cont)
+      = let char (N.EApp (N.EVar (Var "extern_succ")) rest) = succ (char rest)
+            char (N.EVar (Var "extern_0")) = minBound
+            char nope = error ("Bad increment: " ++ previewError (show nope))
         in char increments : marshal cont
-    marshal (N.EVar (Var "hask_eof")) = ""
-    marshal nope = error ("Marshalling broken or bad λAST: " ++ take 32 (show nope))
-
-    source :: N.Expr
-    source = helloWorld
+    marshal (N.EVar (Var "extern_eof")) = ""
+    marshal nope = error ("Marshalling broken or bad λAST: " ++ previewError (show nope))
 
 testHelloWorldSki :: TestTree
 testHelloWorldSki = testCase "SKI calculus" test
   where
-    test = assertEqual "" expected actual
-    expected = "Hello, world!\n"
-    actual = marshal (skiToNominal (S.normalForm (nominalToSki helloWorld)))
+    test = assertEqual Nothing actual expected
+    expected = Expected "Hello, world!\n"
+    actual = (Actual . marshal . S.normalForm . nominalToSki) helloWorld
 
-    marshal :: N.Expr -> String
-    marshal (N.EAbs _ e) = marshal e
-    marshal (N.EApp (N.EApp (N.EVar (Var "hask_outChr")) increments) cont)
-      = let char (N.EApp (N.EVar (Var "hask_succ")) rest) = succ (char rest)
-            char (N.EVar (Var "hask_0")) = minBound
-            char nope = error ("Bad increment: " ++ take 128 (show nope))
+    marshal :: S.Expr -> String
+    marshal (S.EApp (S.EApp (S.EFree "extern_outChr") increments) cont)
+      = let char (S.EApp (S.EFree "extern_succ") rest) = succ (char rest)
+            char (S.EFree "extern_0") = minBound
+            char nope = error ("Bad increment: " ++ previewError (show nope))
         in char increments : marshal cont
-    marshal (N.EVar (Var "hask_eof")) = ""
-    marshal nope = error ("Cannot marshal value: " ++ take 128 (show nope))
+    marshal (S.EFree "extern_eof") = ""
+    marshal nope = error ("Cannot marshal value: " ++ previewError (show nope))
 
 testParseShowInverse :: (Show a, Eq a) => TestName -> Text -> (Text -> Either String a) -> TestTree
 testParseShowInverse testName input parser = testCase testName test
@@ -259,9 +284,18 @@ testParseShowInverse testName input parser = testCase testName test
     expected = unsafeTestParse input
     actual = unsafeTestParse (showT (unsafeTestParse input))
     test = assertEqual
-        "parse input ≠ (parse.show.parse) input"
-        expected
-        actual
+        (Just "parse input ≠ (parse.show.parse) input")
+        (Actual actual)
+        (Expected expected)
+
+previewError :: String -> String
+previewError = dotdot 256 . T.unpack . T.unwords . map T.strip . T.lines . T.pack
+  where
+    dotdot :: Int -> String -> String
+    dotdot _ []     = ""
+    dotdot 0 _      = "…"
+    dotdot n (x:xs) = x : dotdot (n-1) xs
+
 
 nat :: Int -> N.Expr
 nat n = N.EAbs (Var "f")

@@ -50,6 +50,7 @@ executable hello-ski
     build-depends:
           base
         , lambda-ski
+        , text
     hs-source-dirs:      app
     main-is:             HelloSki.hs
     ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall

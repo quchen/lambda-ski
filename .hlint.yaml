@@ -23,6 +23,8 @@
 - ignore: {name: "Use second"}
 - ignore: {name: "Use <$>"}
 - ignore: {name: "Use String"}
+- ignore: {name: "Use tuple-section"}
+- ignore: {name: "Use list comprehension"}
 
 # I don’t like $
 - error:

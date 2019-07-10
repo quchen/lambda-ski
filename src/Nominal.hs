@@ -15,13 +15,13 @@ import           Control.Applicative
 import           Data.Char
 import           Data.Set                                  (Set)
 import qualified Data.Set                                  as S
+import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.String
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
-import           Data.String
 import           Text.Megaparsec                           (Parsec, (<?>))
 import qualified Text.Megaparsec                           as P
 import qualified Text.Megaparsec.Char                      as P

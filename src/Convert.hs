@@ -91,7 +91,7 @@ nominalToSki = irToSki . translate . nominalToIr
     translate = \case
 
         -- 1. T[x] => x
-        e@SLVar{} -> e
+        var@SLVar{} -> var
 
         -- 2. T[(E₁ E₂)] => (T[E₁] T[E₂])
         SLApp f x -> SLApp (translate f) (translate x)
@@ -110,19 +110,19 @@ nominalToSki = irToSki . translate . nominalToIr
 
         SLAbs x (SLApp e1 e2)
 
-            -- 6. T[λx.(E₁ E₂)] => (S T[λx.E₁] T[λx.E₂]) (if x occurs free in E₁ or E₂)
+            -- 6. T[λx.(E₁ E₂)] => (S T[λx.E₁] T[λx.E₂]) (if x occurs free in both E₁ and E₂)
             | x `occursFreeIn` e1 && x `occursFreeIn` e2
                 -> SLApp (SLApp SLS (translate (SLAbs x e1)))
                                     (translate (SLAbs x e2))
 
-            -- 7. T[λx.(E₁ E₂)] ⇒ (C T[λx.E₁] T[E₂]) (if x occurs free in E₁ but not E₂)
+            -- 7. T[λx.(E₁ E₂)] => (C T[λx.E₁] T[E₂]) (if x occurs free in E₁ but not E₂)
             | x `occursFreeIn` e1 && not (x `occursFreeIn` e2)
                 -> SLApp (SLApp SLC (translate (SLAbs x e1)))
-                                    (translate (SLAbs x e2))
+                                    (translate e2)
 
-            -- 8. T[λx.(E₁ E₂)] ⇒ (B T[E₁] T[λx.E₂]) (if x occurs free in E₂ but not E₁)
+            -- 8. T[λx.(E₁ E₂)] => (B T[E₁] T[λx.E₂]) (if x occurs free in E₂ but not E₁)
             | not (x `occursFreeIn` e1) && x `occursFreeIn` e2
-                -> SLApp (SLApp SLB (translate (SLAbs x e1)))
+                -> SLApp (SLApp SLB (translate e1))
                                     (translate (SLAbs x e2))
 
         -- errors
@@ -156,10 +156,10 @@ nominalToSki = irToSki . translate . nominalToIr
 
 skiToNominal :: S.Expr -> N.Expr
 skiToNominal = \case
-    S            -> N.unsafeParse "λf g x. f x (g x)"
-    K            -> N.unsafeParse "λx _. x"
-    I            -> N.unsafeParse "λx. x"
-    B            -> N.unsafeParse "λf g x. f (g x)"
-    C            -> N.unsafeParse "λf y x. f x y"
+    S            -> "λf g x. f x (g x)"
+    K            -> "λx _. x"
+    I            -> "λx. x"
+    B            -> "λf g x. f (g x)"
+    C            -> "λf y x. f x y"
     S.EFree name -> N.EVar (N.Var name)
     S.EApp f x   -> N.EApp (skiToNominal f) (skiToNominal x)

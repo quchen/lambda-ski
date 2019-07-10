@@ -12,6 +12,7 @@ module Ski (
 
 
 import           Data.Char
+import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
@@ -21,7 +22,6 @@ import           Data.Void
 import           Text.Megaparsec                           (Parsec)
 import qualified Text.Megaparsec                           as P
 import qualified Text.Megaparsec.Char                      as P
-import Data.String
 
 import Orphans ()
 
@@ -118,7 +118,7 @@ normalForm (EApp e x) = case normalForm e of
     S `EApp` f `EApp` g -> normalForm (f `EApp` x `EApp` (g `EApp` x))
     B `EApp` f `EApp` g -> normalForm (f `EApp` (g `EApp` x))
     C `EApp` f `EApp` y -> normalForm (f `EApp` x `EApp` y)
-    other               -> EApp other x
+    other               -> EApp other (normalForm x)
 normalForm free@EFree{} = free
 normalForm S = S
 normalForm K = K
@@ -148,13 +148,13 @@ sExprP = do
   where
     atom = do
         name <- tok (P.some (P.satisfy (\c -> not (isSpace c || elem c ("()" :: String)))))
-        pure (case name of
-            "s" -> S
-            "k" -> K
-            "i" -> I
-            "b" -> B
-            "c" -> C
-            free -> EFree (T.pack free))
+        pure (case map toUpper name of
+            "S" -> S
+            "K" -> K
+            "I" -> I
+            "B" -> B
+            "C" -> C
+            _other -> EFree (T.pack name))
     term = atom P.<|> parenthesized sExprP
 
     sApp :: Expr -> [Expr] -> Expr
