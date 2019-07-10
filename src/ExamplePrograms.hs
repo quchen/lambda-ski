@@ -48,10 +48,9 @@ fibonacci = N.unsafeParse
 
 helloWorld :: N.Expr
 helloWorld = N.unsafeParse
-    " (λ 1 + ^.                                                                               \
-    \     (λ2.                                                                                \
+    " (λ 1 2 + ^.                                                                             \
     \         (λ4 8 16 32 64 print.                                                           \
-    \             (λ H e l o , ␣ w r d ! newline.                                             \
+    \             (λ H e l o  , ␣ w r d ! newline.                                            \
     \                  H (e (l (l (o (, (␣ (w (o (r (l (d (! (newline extern_eof))))))))))))) \
     \             )                                                                           \
     \             (print (+ 64 8))                                                            \
@@ -72,9 +71,8 @@ helloWorld = N.unsafeParse
     \         (^ 2 (+ 1 (+ 2 2)))                                                             \
     \         (^ 2 (+ 2 (+ 2 2)))                                                             \
     \         (λn. extern_outChr (n extern_succ extern_0))                                    \
-    \     )                                                                                   \
-    \     (+ 1 1)                                                                             \
     \ )                                                                                       \
     \ (λx. x)                                                                                 \
+    \ (λf x. f (f x))                                                                         \
     \ (λa b f x. a f (b f x))                                                                 \
     \ (λb e. e b)                                                                             "
