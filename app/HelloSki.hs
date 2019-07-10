@@ -36,6 +36,7 @@ backends =
     , ("ruby",       ruby      )
     , ("haskell",    haskell   )]
 
+allowICB :: Bool
 allowICB = False
 
 helloSki :: S.Expr
@@ -54,7 +55,6 @@ haskell = T.unlines
     , ""
     , "s f g x = f x (g x)"
     , "k x _ = x"
-    , ""
     , if allowICB
         then T.unlines
             [ "i = " <> skiToHs "S K K"
@@ -73,7 +73,6 @@ python :: Text
 python = T.unlines
     [ "S = lambda f: lambda g: lambda x: f(x)(g(x))"
     , "K = lambda x: lambda y: x"
-    , ""
     , if allowICB
         then T.unlines
             [ "I = " <> snd (compile "S K K")
@@ -154,7 +153,6 @@ javascript :: Text
 javascript = T.unlines
     [ "S = f => g => x => f(x)(g(x));"
     , "K = x => _ => x;"
-    , ""
     , if allowICB
         then T.unlines
             [ "I = " <> skiToJs "S K K" <> ";"
