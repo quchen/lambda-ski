@@ -5,11 +5,11 @@ module Main where
 
 
 import           Control.Monad
-import           Data.Char
-import           Data.List
-import           Data.Text          (Text)
-import qualified Data.Text          as T
-import qualified Data.Text.IO       as T
+import           Data.List                             hiding (group)
+import qualified Data.Text                             as T
+import qualified Data.Text.IO                          as T
+import           Data.Text.Prettyprint.Doc
+import           Data.Text.Prettyprint.Doc.Render.Text
 import           System.Environment
 
 import           Convert
@@ -24,12 +24,13 @@ main = do
     args <- getArgs
     case args of
         [lang] -> case lookup lang backends of
-            Just code -> T.putStrLn code
+            Just code -> let render = renderStrict . layoutPretty defaultLayoutOptions
+                         in T.putStrLn (render code)
             Nothing -> error ("Unsupported language: " ++ lang ++ ". Options: " ++ intercalate ", " (map fst backends))
         [] -> error ("No target language specified. Options: " ++ intercalate ", " (map fst backends))
         _ -> error "Expecting single parameter (backend language)"
 
-backends :: [(String, Text)]
+backends :: [(String, Doc ann)]
 backends =
     [ ("python3",    python    )
     , ("javascript", javascript)
@@ -47,8 +48,8 @@ helloSki = nominalToSki allowICB
        (N.EAbs (N.Var "extern_0")
         Example.helloWorld))))
 
-haskell :: Text
-haskell = T.unlines
+haskell :: Doc ann
+haskell = vcat
     [ "module Main (main) where"
     , ""
     , "main = putStr (hello (:) [] succ minBound)"
@@ -56,57 +57,58 @@ haskell = T.unlines
     , "s f g x = f x (g x)"
     , "k x _ = x"
     , if allowICB
-        then T.unlines
+        then vcat
             [ "i = " <> skiToHs "S K K"
             , "b = " <> skiToHs "S (K S) K"
             , "c = " <> skiToHs "S (S (K (S (K S) K)) S) (K K)"
             ]
         else ""
     , "hello :: (char -> io -> io) -> io -> (char -> char) -> char -> io"
-    , "hello = " <> skiToHs helloSki
+    , hang 4 ("hello = " <> skiToHs helloSki)
     ]
   where
-    skiToHs :: S.Expr -> Text
-    skiToHs = T.map toLower . T.pack . show
+    skiToHs :: S.Expr -> Doc ann
+    skiToHs = fillSep . map pretty . T.words . T.pack . show
 
-python :: Text
-python = T.unlines
+python :: Doc ann
+python = vcat
     [ "#!/usr/bin/env python3"
     , ""
     ,"S = lambda f: lambda g: lambda x: f(x)(g(x))"
     , "K = lambda x: lambda _: x"
     , if allowICB
-        then T.unlines
+        then vcat
             [ "I = " <> snd (compile "S K K")
             , "B = " <> snd (compile "S (K S) K")
             , "C = " <> snd (compile "S (S (K (S (K S) K)) S) (K K)")
             ]
         else ""
     , let (floats, trunk) = compile helloSki
-      in T.unlines (concat
+      in vcat (concat
         [ if not (null floats)
             then [ "# Python’s parser supports only 100 levels of nesting in expressions,"
                  , "# which we hack around by floating out deeply nested subexpressions." ]
             else []
         , floats
-        , ["hello = " <> trunk]
+        , [hang 4 ("hello = " <> trunk)]
         ])
+    , ""
     , "print(hello (lambda ascii: lambda rest: chr(ascii) + rest) ('') (lambda x: x+1) (0), end='')"
     ]
   where
-    compile :: S.Expr -> ([Text], Text)
+    compile :: S.Expr -> ([Doc ann], Doc ann)
     compile source
       = let WS result = compile' 0 source
             (floats, _state, trunk) = result 0
         in (floats, trunk)
 
-    compile' :: Int -> S.Expr -> WS [Text] Int Text
+    compile' :: Int -> S.Expr -> WS [Doc ann] Int (Doc ann)
     compile' _ S = pure "S"
     compile' _ K = pure "K"
     compile' _ I = pure "I"
     compile' _ B = pure "B"
     compile' _ C = pure "C"
-    compile' _ (EFree name) = pure name
+    compile' _ (EFree name) = pure (pretty name)
     compile' nestingDepth (S.EApp f x) = do
         hd <- compile' nestingDepth f
         let argDepth = exprDepth x
@@ -116,12 +118,12 @@ python = T.unlines
                 tl_floatedOutName <- do
                     uniqueIndex <- get
                     put (uniqueIndex+1)
-                    pure ("hello_" <> T.pack (show uniqueIndex))
+                    pure ("hello_" <> pretty uniqueIndex)
                 floatBody <- compile' 0 x
-                let floatDefinition = tl_floatedOutName <> " = " <> floatBody
+                let floatDefinition = hang 4 (tl_floatedOutName <> " = " <> floatBody)
                 tell [floatDefinition]
                 pure tl_floatedOutName
-        pure (hd <> " (" <> tl <> ")")
+        pure (hd <> group line <> "(" <> tl <> ")")
 
     exprDepth :: S.Expr -> Int
     exprDepth (S.EApp f x) = max (exprDepth f) (1 + exprDepth x)
@@ -151,56 +153,56 @@ put x = WS (\_ -> (mempty, x, ()))
 tell :: w -> WS w s ()
 tell x = WS (\s -> (x, s, ()))
 
-javascript :: Text
-javascript = T.unlines
+javascript :: Doc ann
+javascript = vcat
     [ "#!/usr/bin/env node"
     , ""
     ,"S = f => g => x => f(x)(g(x));"
     , "K = x => _ => x;"
     , if allowICB
-        then T.unlines
+        then vcat
             [ "I = " <> skiToJs "S K K" <> ";"
             , "B = " <> skiToJs "S (K S) K" <> ";"
             , "C = " <> skiToJs "S (S (K (S (K S) K)) S) (K K)" <> ";"
             ]
         else ""
-    , "hello = " <> skiToJs helloSki <> ";"
+    , hang 4 ("hello = " <> skiToJs helloSki <> ";")
     , ""
     , "process.stdout.write(hello (asc => rest => String.fromCharCode(asc) + rest) ('') (x => x+1) (0));"
     ]
   where
-    skiToJs :: S.Expr -> Text
+    skiToJs :: S.Expr -> Doc ann
     skiToJs S = "S"
     skiToJs K = "K"
     skiToJs I = "I"
     skiToJs B = "B"
     skiToJs C = "C"
-    skiToJs (EFree name) = name
-    skiToJs (S.EApp f x) = skiToJs f <> " (" <> skiToJs x <> ")"
+    skiToJs (EFree name) = pretty name
+    skiToJs (S.EApp f x) = skiToJs f <> group line <> "(" <> skiToJs x <> ")"
 
-ruby :: Text
-ruby = T.unlines
+ruby :: Doc ann
+ruby = vcat
     [ "#!/usr/bin/env ruby"
     , ""
     , "S = lambda { |f| lambda { |g| lambda { |x| f.call(x).call(g.call(x)) } } }"
     , "K = lambda { |x| lambda { |_| x } }"
     , if allowICB
-        then T.unlines
+        then vcat
             [ "I = " <> skiToRuby "S K K"
             , "B = " <> skiToRuby "S (K S) K"
             , "C = " <> skiToRuby "S (S (K (S (K S) K)) S) (K K)"
             ]
         else ""
-    , "hello = " <> skiToRuby helloSki
+    , hang 4 ("hello = " <> skiToRuby helloSki)
     , ""
     , "puts(hello.call(lambda { |asc| lambda { |rest| asc.chr + rest } }).call('').call(lambda {|x| x+1}).call(0))"
     ]
   where
-    skiToRuby :: S.Expr -> Text
+    skiToRuby :: S.Expr -> Doc ann
     skiToRuby S = "S"
     skiToRuby K = "K"
     skiToRuby I = "I"
     skiToRuby B = "B"
     skiToRuby C = "C"
-    skiToRuby (EFree name) = name
-    skiToRuby (S.EApp f x) = skiToRuby f <> ".call(" <> skiToRuby x <> ")"
+    skiToRuby (EFree name) = pretty name
+    skiToRuby (S.EApp f x) = skiToRuby f <> ".call(" <> group line' <> skiToRuby x <> ")"
