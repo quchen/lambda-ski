@@ -72,7 +72,7 @@ haskell = T.unlines
 python :: Text
 python = T.unlines
     [ "S = lambda f: lambda g: lambda x: f(x)(g(x))"
-    , "K = lambda x: lambda y: x"
+    , "K = lambda x: lambda _: x"
     , if allowICB
         then T.unlines
             [ "I = " <> snd (compile "S K K")
