@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+stack run hello-ski -- python3    > helloworld/hello.py && ./helloworld/hello.py
+stack run hello-ski -- ruby       > helloworld/hello.rb && ./helloworld/hello.rb
+stack run hello-ski -- javascript > helloworld/hello.js && ./helloworld/hello.js
