@@ -125,7 +125,7 @@ python = vcat
                 let floatDefinition = hang 4 (tl_floatedOutName <> " = " <> floatBody)
                 tell [floatDefinition]
                 pure tl_floatedOutName
-        pure (hd <> group line <> "(" <> group line' <> tl <> group line' <> ")")
+        pure (hd <> group line' <> "(" <> group line' <> tl <> group line' <> ")")
 
     exprDepth :: S.Expr -> Int
     exprDepth (S.EApp f x) = max (exprDepth f) (1 + exprDepth x)
@@ -180,7 +180,7 @@ javascript = vcat
     skiToJs B = "B"
     skiToJs C = "C"
     skiToJs (EFree name) = pretty name
-    skiToJs (S.EApp f x) = skiToJs f <> group line <> "(" <> group line' <> skiToJs x <> group line' <> ")"
+    skiToJs (S.EApp f x) = skiToJs f <> group line' <> "(" <> group line' <> skiToJs x <> group line' <> ")"
 
 ruby :: Doc ann
 ruby = vcat
