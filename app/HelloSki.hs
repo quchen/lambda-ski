@@ -37,7 +37,8 @@ backends = M.fromList
     [ ("python3",    python    )
     , ("javascript", javascript)
     , ("ruby",       ruby      )
-    , ("haskell",    haskell   )]
+    , ("haskell",    haskell   )
+    , ("haskell2",    haskell2   )]
 
 allowICB :: Bool
 allowICB = False
@@ -55,22 +56,69 @@ haskell = vcat
     [ "module Main (main) where"
     , "-- Does not typecheck yet :-("
     , "main = putStr (hello (:) [] succ minBound)"
-    , ""
-    , "s f g x = f x (g x)"
-    , "k x _ = x"
-    , if allowICB
-        then vcat
-            [ "i = " <> skiToHs "S K K"
-            , "b = " <> skiToHs "S (K S) K"
-            , "c = " <> skiToHs "S (S (K (S (K S) K)) S) (K K)"
-            ]
-        else ""
     , "hello :: (char -> io -> io) -> io -> (char -> char) -> char -> io"
-    , hang 4 ("hello = " <> skiToHs helloSki)
+    , hang 4 ("hello = " <> skiToHs False helloSki)
     ]
   where
-    skiToHs :: S.Expr -> Doc ann
-    skiToHs = fillSep . map pretty . T.words . T.pack . map toLower . show
+    skiToHs :: Bool -> S.Expr -> Doc ann
+    skiToHs _ S = "(<*>)"
+    skiToHs _ K = "pure"
+    skiToHs _ I = "id"
+    skiToHs _ B = "(.)"
+    skiToHs _ C = "flip"
+    skiToHs _ (EFree name) = pretty name
+    skiToHs True app@S.EApp{} = "(" <> group line' <> skiToHs False app <> group line' <> ")"
+    skiToHs False (S.EApp e1 e2)
+      = let (hd, args) = collectArgs e1 e2
+        in concatWith (\x y -> x <> group line <> y) (skiToHs False hd : map (skiToHs True) args)
+      where
+        collectArgs :: S.Expr -> S.Expr -> (S.Expr, [S.Expr])
+        collectArgs (S.EApp e e') arg
+          = let (hd, args) = collectArgs e e'
+            in (hd, args ++ [arg])
+        collectArgs hd arg = (hd, [arg])
+
+haskell2 :: Doc ann
+haskell2 = vcat
+    [ "module Main (main) where"
+    , ""
+    , "main = (putStrLn . marshal . nf) hello"
+    , ""
+    , "data SK"
+    , "    = S"
+    , "    | K"
+    , "    | I"
+    , "    | B"
+    , "    | C"
+    , "    | EFree String"
+    , "    | EApp SK SK"
+    , ""
+    , "nf (EApp e x) = case nf e of"
+    , "    EApp K y          -> nf y"
+    , "    EApp (EApp S f) g -> nf (EApp (EApp f x) (EApp g x))"
+    , "    I                 -> nf x"
+    , "    EApp (EApp B f) g -> nf (EApp f (EApp g x))"
+    , "    EApp (EApp C f) y -> nf (EApp (EApp f x) y)"
+    , "    other             -> EApp other (nf x)"
+    , "nf x = x"
+    , ""
+    , "marshal (EApp (EApp (EFree \"extern_outChr\") increments) cont)"
+    , "  = let char (EApp (EFree \"extern_succ\") rest) = succ (char rest)"
+    , "        char (EFree \"extern_0\") = minBound"
+    , "    in char increments : marshal cont"
+    , "marshal (EFree \"extern_eof\") = \"\""
+    , ""
+    , "hello = " <> skiToHs helloSki
+    ]
+  where
+    skiToHs :: S.Expr -> Doc an
+    skiToHs S = "S"
+    skiToHs K = "K"
+    skiToHs I = "I"
+    skiToHs B = "B"
+    skiToHs C = "C"
+    skiToHs (EFree name) = parens ("EFree" <+> pretty name)
+    skiToHs (S.EApp e1 e2) = "EApp" <+> parens (skiToHs e1) <+> parens (skiToHs e2)
 
 python :: Doc ann
 python = vcat
