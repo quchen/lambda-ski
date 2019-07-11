@@ -5,7 +5,7 @@ module ExamplePrograms where
 import Nominal as N
 
 factorial :: N.Expr
-factorial = N.unsafeParse
+factorial =
     " (λ-1 * true false Y 1.                      \
     \     (λ =0.                                  \
     \         Y (λrec n. (=0 n)                   \
@@ -23,7 +23,7 @@ factorial = N.unsafeParse
     \ (λf x. f x)                                 "
 
 fibonacci :: N.Expr
-fibonacci = N.unsafeParse
+fibonacci =
     " (λ +1 -1 true false Y 1.                    \
     \     (λ =0 + -.                              \
     \         (λ <= 2.                            \
@@ -47,7 +47,7 @@ fibonacci = N.unsafeParse
     \ (λf x. f x)                                 "
 
 helloWorld :: N.Expr
-helloWorld = N.unsafeParse
+helloWorld =
     " (λ 1 2 + ^.                                                                             \
     \         (λ4 8 16 32 64 print.                                                           \
     \             (λ H e l o  , ␣ w r d ! newline.                                            \
