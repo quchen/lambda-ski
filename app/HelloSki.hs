@@ -71,7 +71,9 @@ haskell = T.unlines
 
 python :: Text
 python = T.unlines
-    [ "S = lambda f: lambda g: lambda x: f(x)(g(x))"
+    [ "#!/usr/bin/env python3"
+    , ""
+    ,"S = lambda f: lambda g: lambda x: f(x)(g(x))"
     , "K = lambda x: lambda _: x"
     , if allowICB
         then T.unlines
@@ -151,7 +153,9 @@ tell x = WS (\s -> (x, s, ()))
 
 javascript :: Text
 javascript = T.unlines
-    [ "S = f => g => x => f(x)(g(x));"
+    [ "#!/usr/bin/env node"
+    , ""
+    ,"S = f => g => x => f(x)(g(x));"
     , "K = x => _ => x;"
     , if allowICB
         then T.unlines
@@ -176,7 +180,9 @@ javascript = T.unlines
 
 ruby :: Text
 ruby = T.unlines
-    [ "S = lambda { |f| lambda { |g| lambda { |x| f.call(x).call(g.call(x)) } } }"
+    [ "#!/usr/bin/env ruby"
+    , ""
+    , "S = lambda { |f| lambda { |g| lambda { |x| f.call(x).call(g.call(x)) } } }"
     , "K = lambda { |x| lambda { |_| x } }"
     , if allowICB
         then T.unlines
