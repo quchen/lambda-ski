@@ -5,6 +5,7 @@ module Main where
 
 
 import           Control.Monad
+import           Data.Char
 import           Data.List                             hiding (group)
 import qualified Data.Text                             as T
 import qualified Data.Text.IO                          as T
@@ -51,7 +52,7 @@ helloSki = nominalToSki allowICB
 haskell :: Doc ann
 haskell = vcat
     [ "module Main (main) where"
-    , ""
+    , "-- Does not typecheck yet :-("
     , "main = putStr (hello (:) [] succ minBound)"
     , ""
     , "s f g x = f x (g x)"
@@ -68,7 +69,7 @@ haskell = vcat
     ]
   where
     skiToHs :: S.Expr -> Doc ann
-    skiToHs = fillSep . map pretty . T.words . T.pack . show
+    skiToHs = fillSep . map pretty . T.words . T.pack . map toLower . show
 
 python :: Doc ann
 python = vcat
