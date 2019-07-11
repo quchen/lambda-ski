@@ -6,6 +6,7 @@ module Main where
 
 import           Control.Monad
 import           Data.Char
+import           qualified Data.Map as M
 import           Data.List                             hiding (group)
 import qualified Data.Text                             as T
 import qualified Data.Text.IO                          as T
@@ -24,15 +25,15 @@ main :: IO ()
 main = do
     args <- getArgs
     case args of
-        [lang] -> case lookup lang backends of
+        [lang] -> case M.lookup lang backends of
             Just code -> let render = renderStrict . layoutPretty defaultLayoutOptions
                          in T.putStrLn (render code)
-            Nothing -> error ("Unsupported language: " ++ lang ++ ". Options: " ++ intercalate ", " (map fst backends))
-        [] -> error ("No target language specified. Options: " ++ intercalate ", " (map fst backends))
+            Nothing -> error ("Unsupported language: " ++ lang ++ ". Options: " ++ intercalate ", " (M.keys backends))
+        [] -> error ("No target language specified. Options: " ++ intercalate ", " (M.keys backends))
         _ -> error "Expecting single parameter (backend language)"
 
-backends :: [(String, Doc ann)]
-backends =
+backends :: M.Map String (Doc ann)
+backends = M.fromList
     [ ("python3",    python    )
     , ("javascript", javascript)
     , ("ruby",       ruby      )
