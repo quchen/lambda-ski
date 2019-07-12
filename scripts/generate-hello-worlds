@@ -9,11 +9,12 @@ run() {
     codegen=$2
     file=helloworld/$3
     echo -n "$language"
-    stack run hello-ski -- "$codegen" > "$file"
+    stack exec hello-ski -- "$codegen" > "$file"
     chmod u+x "$file"
     "./$file"
 }
 
+stack build
 run "Python 3:   " "python3"    hello.py
 run "Ruby:       " "ruby"       hello.rb
 run "Javascript: " "javascript" hello.js
