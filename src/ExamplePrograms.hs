@@ -115,7 +115,7 @@ stdlib prog = define (Var "PROGRAM", prog)
     \ (let (λ p. p false)   (λ snd.  \n\
     \\n\
     \ (let false                                                                            (λ nil.       \n\
-    \ (let (λ list. list (λ _ _. false) true)                                               (λ null.      \n\
+    \ (let (λ list. list (λ _ _ _. false) true)                                             (λ null.      \n\
     \ (let pair                                                                             (λ cons.      \n\
     \ (let fst                                                                              (λ head.      \n\
     \ (let snd                                                                              (λ tail.      \n\
