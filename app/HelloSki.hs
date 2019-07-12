@@ -5,10 +5,8 @@ module Main where
 
 
 import           Control.Monad
-import           Data.Char
-import           qualified Data.Map as M
 import           Data.List                             hiding (group)
-import qualified Data.Text                             as T
+import qualified Data.Map                              as M
 import qualified Data.Text.IO                          as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.Text
@@ -37,8 +35,7 @@ backends = M.fromList
     [ ("python3",    python    )
     , ("javascript", javascript)
     , ("ruby",       ruby      )
-    , ("haskell",    haskell   )
-    , ("haskell2",    haskell2   )]
+    , ("haskell",    haskell   )]
 
 allowICB :: Bool
 allowICB = False
@@ -54,35 +51,8 @@ helloSki = nominalToSki allowICB
 haskell :: Doc ann
 haskell = vcat
     [ "module Main (main) where"
-    , "-- Does not typecheck yet :-("
-    , "main = putStr (hello (:) [] succ minBound)"
-    , "hello :: (char -> io -> io) -> io -> (char -> char) -> char -> io"
-    , hang 4 ("hello = " <> skiToHs False helloSki)
-    ]
-  where
-    skiToHs :: Bool -> S.Expr -> Doc ann
-    skiToHs _ S = "(<*>)"
-    skiToHs _ K = "pure"
-    skiToHs _ I = "id"
-    skiToHs _ B = "(.)"
-    skiToHs _ C = "flip"
-    skiToHs _ (EFree name) = pretty name
-    skiToHs True app@S.EApp{} = "(" <> group line' <> skiToHs False app <> group line' <> ")"
-    skiToHs False (S.EApp e1 e2)
-      = let (hd, args) = collectArgs e1 e2
-        in concatWith (\x y -> x <> group line <> y) (skiToHs False hd : map (skiToHs True) args)
-      where
-        collectArgs :: S.Expr -> S.Expr -> (S.Expr, [S.Expr])
-        collectArgs (S.EApp e e') arg
-          = let (hd, args) = collectArgs e e'
-            in (hd, args ++ [arg])
-        collectArgs hd arg = (hd, [arg])
-
-haskell2 :: Doc ann
-haskell2 = vcat
-    [ "module Main (main) where"
     , ""
-    , "main = (putStrLn . marshal . nf) hello"
+    , "main = (putStr . marshal . nf) hello"
     , ""
     , "data SK"
     , "    = S"
@@ -91,7 +61,7 @@ haskell2 = vcat
     , "    | B"
     , "    | C"
     , "    | EFree String"
-    , "    | EApp SK SK"
+    , "    | EApp SK SK deriving (Show)"
     , ""
     , "nf (EApp e x) = case nf e of"
     , "    EApp K y          -> nf y"
@@ -108,7 +78,7 @@ haskell2 = vcat
     , "    in char increments : marshal cont"
     , "marshal (EFree \"extern_eof\") = \"\""
     , ""
-    , "hello = " <> skiToHs helloSki
+    , "hello = " <> skiToHs (nominalToSki allowICB Example.helloWorld)
     ]
   where
     skiToHs :: S.Expr -> Doc an
@@ -117,7 +87,7 @@ haskell2 = vcat
     skiToHs I = "I"
     skiToHs B = "B"
     skiToHs C = "C"
-    skiToHs (EFree name) = parens ("EFree" <+> pretty name)
+    skiToHs (EFree name) = parens ("EFree" <+> dquotes (pretty name))
     skiToHs (S.EApp e1 e2) = "EApp" <+> parens (skiToHs e1) <+> parens (skiToHs e2)
 
 python :: Doc ann
