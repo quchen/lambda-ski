@@ -56,29 +56,30 @@ haskell = vcat
     , ""
     , "main = (putStr . marshal . nf) hello"
     , ""
-    , "data SK"
-    , "    = S"
-    , "    | K"
-    , "    | I"
-    , "    | B"
-    , "    | C"
-    , "    | EFree String"
-    , "    | EApp SK SK deriving (Show)"
+    , "data SK = S | K | " <> (if allowICB then "I | B | C | " else "") <> "Free String | App SK SK"
     , ""
-    , "nf (EApp e x) = case nf e of"
-    , "    EApp K y          -> nf y"
-    , "    EApp (EApp S f) g -> nf (EApp (EApp f x) (EApp g x))"
-    , "    I                 -> nf x"
-    , "    EApp (EApp B f) g -> nf (EApp f (EApp g x))"
-    , "    EApp (EApp C f) y -> nf (EApp (EApp f x) y)"
-    , "    other             -> EApp other (nf x)"
+    , "nf (App e x) = case nf e of"
+    , vsep (
+        [ "    App K y         -> nf y"
+        , "    App (App S f) g -> nf (App (App f x) (App g x))"]
+        ++
+        (if allowICB
+            then
+                [ "    I               -> nf x"
+                , "    App (App B f) g -> nf (App f (App g x))"
+                , "    App (App C f) y -> nf (App (App f x) y)"
+                ]
+            else [])
+        ++
+        ["    other           -> App other (nf x)"]
+        )
     , "nf x = x"
     , ""
-    , "marshal (EApp (EApp (EFree \"extern_outChr\") increments) cont)"
-    , "  = let char (EApp (EFree \"extern_succ\") rest) = succ (char rest)"
-    , "        char (EFree \"extern_0\") = minBound"
+    , "marshal (App (App (Free \"extern_outChr\") increments) cont)"
+    , "  = let char (App (Free \"extern_succ\") rest) = succ (char rest)"
+    , "        char (Free \"extern_0\") = minBound"
     , "    in char increments : marshal cont"
-    , "marshal (EFree \"extern_eof\") = \"\""
+    , "marshal (Free \"extern_eof\") = \"\""
     , ""
     , nest 4 ("hello = " <> skiToHs (nominalToSki allowICB Example.helloWorld))
     ]
@@ -89,8 +90,8 @@ haskell = vcat
     skiToHs I = "I"
     skiToHs B = "B"
     skiToHs C = "C"
-    skiToHs (EFree name) = parens ("EFree" <+> dquotes (pretty name))
-    skiToHs (S.EApp e1 e2) = "EApp" <> group line <> parens (skiToHs e1) <> group line <> parens (skiToHs e2)
+    skiToHs (EFree name) = parens ("Free" <+> dquotes (pretty name))
+    skiToHs (S.EApp e1 e2) = "App" <> group line <> parens (skiToHs e1) <> group line <> parens (skiToHs e2)
 
 python :: Doc ann
 python = vcat
