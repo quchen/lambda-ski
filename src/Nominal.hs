@@ -3,7 +3,7 @@
 module Nominal (
     Var(..),
     Expr(..),
-    freeVars,
+    define,
     parse,
     unsafeParse,
     prettyAnsi
@@ -13,8 +13,6 @@ module Nominal (
 
 import           Control.Applicative
 import           Data.Char
-import           Data.Set                                  (Set)
-import qualified Data.Set                                  as S
 import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
@@ -40,18 +38,17 @@ data Expr
 instance IsString Expr where
     fromString = unsafeParse . T.pack
 
-freeVars :: Expr -> Set Var
-freeVars (EVar x)   = S.singleton x
-freeVars (EApp f x) = freeVars f <> freeVars x
-freeVars (EAbs x e) = S.delete x (freeVars e)
-
 prettyAnsi :: Expr -> Doc AnsiStyle
 prettyAnsi = prettyPrec 0
 
 prettyPrec :: Int -> Expr -> Doc AnsiStyle
 prettyPrec _ (EVar var) = annotate (variableStyle var) (pretty var)
-prettyPrec p (EApp e1 e2) = parenthesize (p > 10)
-    (align (sep [prettyPrec 10 e1, prettyPrec (10+1) e2]))
+prettyPrec p (EApp e1 e2)
+  = let collectArgs (EApp e e') arg = let (hd, args) = collectArgs e e'
+                                      in (hd, args ++ [arg])
+        collectArgs hd arg = (hd, [arg])
+        (f, xyz) = collectArgs e1 e2
+    in parenthesize (p > 10) (prettyPrec 10 f <+> align (vsep (map (prettyPrec (10+1)) xyz)))
 prettyPrec p lamAbs@EAbs{}
   = let collectArgs args expr = case expr of
              EAbs y e' -> collectArgs (y:args) e'
@@ -77,29 +74,32 @@ parenthesize p x
     | p = parens x
     | otherwise = x
 
-data ParensNecessary = Parens | NoParens
-
 instance Pretty Expr where
-    pretty = go NoParens
-      where
-        go _ (EVar x) = pretty x
-        go Parens x = parens (go NoParens x)
-        go NoParens (EApp e1 e2)
-          = let parentheses = case e1 of EAbs{} -> Parens; _ -> NoParens
-            in align (sep [go parentheses e1, go Parens e2])
-        go _ lamAbs@EAbs{}
-          = let collectArgs args expr = case expr of
-                    EAbs y e' -> collectArgs (y:args) e'
-                    _other -> (args, expr)
-                (collectedArgs, finalExpr) = collectArgs [] lamAbs
-                finalArgs = map pretty (reverse collectedArgs)
-            in "λ " <> hsep finalArgs <> dot <+> go NoParens finalExpr
+    pretty = unAnnotate . prettyAnsi
 
 instance Pretty Var where
     pretty (Var v) = pretty v
 
 instance Show Expr where
     show = renderString . layoutPretty defaultLayoutOptions . pretty
+
+-- | Replace all occurrences of a free 'Var'iable with some 'Expr'ession. Useful
+-- to include programs in others.
+--
+-- @
+-- 'define' ('Var' "BODY") program stdlib
+-- @
+define
+    :: (Var, Expr) -- ^ Variable and replacement
+    -> Expr -- ^ Program in which to do the replacement
+    -> Expr
+define (v, val) eVar@(EVar v')
+    | v == v' = val
+    | otherwise = eVar
+define dfn (EApp f x) = EApp (define dfn f) (define dfn x)
+define dfn@(v, _) eAbs@(EAbs v' e)
+    | v == v' = eAbs
+    | otherwise = EAbs v' (define dfn e)
 
 type Parser = Parsec Void Text
 
