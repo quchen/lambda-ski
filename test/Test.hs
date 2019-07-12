@@ -219,14 +219,14 @@ testReduceDeBruijn :: Maybe TestName -> B.Expr -> B.Expr -> TestTree
 testReduceDeBruijn mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = Actual (eval input)
+    actual = Actual (evalTo B.normalForm input)
     test = assertEqual Nothing actual (Expected expected)
 
 testReduceNominalViaDeBruijn :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
 testReduceNominalViaDeBruijn mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = (Actual . deBruijnToNominal . eval . nominalToDeBruijn) input
+    actual = (Actual . deBruijnToNominal . evalTo B.normalForm . nominalToDeBruijn) input
     test = assertEqual Nothing actual (Expected expected)
 
 testReduceSki :: Maybe TestName -> S.Expr -> S.Expr -> TestTree
@@ -249,7 +249,7 @@ testHelloWorldNominal = testCase "Lambda calculus version, old implementation" t
   where
     test = assertEqual Nothing actual expected
     expected = Expected "Hello, world!\n"
-    actual = (Actual . marshal . deBruijnToNominal . B.normalForm . nominalToDeBruijn) helloWorld
+    actual = (Actual . marshal . deBruijnToNominal . evalTo B.normalForm . nominalToDeBruijn) helloWorld
 
     marshal :: N.Expr -> String
     marshal (N.EAbs _ e) = marshal e

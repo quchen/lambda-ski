@@ -29,7 +29,7 @@ main = runInputT defaultSettings (withInterrupt loop)
                     Left err -> outputStrLn ("Parse error: " ++ show err) >> loop
                     Right nominal -> do
                         let deBruijn = nominalToDeBruijn nominal
-                            evaluated = eval deBruijn
+                            evaluated = evalTo B.normalForm deBruijn
                             nominalAgain = deBruijnToNominal evaluated
 
                         outputStrLn "Nominal input"

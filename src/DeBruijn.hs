@@ -2,8 +2,14 @@
 
 module DeBruijn (
     Expr(..),
-    eval,
+
+    evalTo,
+    Reduction,
     normalForm,
+    headNormalForm,
+    weakNormalForm,
+    weakHeadNormalForm,
+
     parse,
     unsafeParse,
     prettyAnsi
@@ -96,16 +102,33 @@ parenthesize p x
     | p = parens x
     | otherwise = x
 
-eval :: Expr -> Expr
-eval = normalForm
+data Reduction = Reduce
+    { reduceArgs :: Bool
+    , reduceAbstractions :: Bool
+    }
 
-normalForm :: Expr -> Expr
-normalForm (EApp f x) = case normalForm f of
-    EAbs body -> normalForm (shift (-1) 0 (subst 0 (shift 1 0 x) body))
-    f' -> EApp f' (normalForm x)
-normalForm (EAbs e) = EAbs (normalForm e)
-normalForm var@EVar{} = var
-normalForm var@EVarFree{} = var
+normalForm :: Reduction
+normalForm = Reduce { reduceArgs = True, reduceAbstractions = True }
+
+headNormalForm :: Reduction
+headNormalForm = Reduce { reduceArgs = False, reduceAbstractions = True }
+
+weakNormalForm :: Reduction
+weakNormalForm = Reduce { reduceArgs = True, reduceAbstractions = False }
+
+weakHeadNormalForm :: Reduction
+weakHeadNormalForm = Reduce { reduceArgs = False, reduceAbstractions = False }
+
+evalTo :: Reduction -> Expr -> Expr
+evalTo r (EApp f x) = case evalTo r f of
+    EAbs body -> evalTo r (shift (-1) 0 (subst 0 (shift 1 0 x) body))
+    f' | reduceArgs r -> EApp f' (evalTo r x)
+       | otherwise    -> EApp f' x
+evalTo r eAbs@(EAbs e)
+    | reduceAbstractions r = EAbs (evalTo r e)
+    | otherwise            = eAbs
+evalTo _ var@EVar{} = var
+evalTo _ var@EVarFree{} = var
 
 shift
     :: Integer -- ^ Shift amount
