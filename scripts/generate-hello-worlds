@@ -4,6 +4,17 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-stack run hello-ski -- python3    > helloworld/hello.py && ./helloworld/hello.py
-stack run hello-ski -- ruby       > helloworld/hello.rb && ./helloworld/hello.rb
-stack run hello-ski -- javascript > helloworld/hello.js && ./helloworld/hello.js
+run() {
+    language=$1
+    codegen=$2
+    file=helloworld/$3
+    echo -n "$language"
+    stack run hello-ski -- "$codegen" > "$file"
+    chmod u+x "$file"
+    "./$file"
+}
+
+run "Python 3:   " "python3"    hello.py
+run "Ruby:       " "ruby"       hello.rb
+run "Javascript: " "javascript" hello.js
+run "Haskell:    " "haskell"    hello.hs

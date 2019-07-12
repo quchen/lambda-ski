@@ -50,7 +50,9 @@ helloSki = nominalToSki allowICB
 
 haskell :: Doc ann
 haskell = vcat
-    [ "module Main (main) where"
+    [ "#!/usr/bin/env runhaskell"
+    , ""
+    , "module Main (main) where"
     , ""
     , "main = (putStr . marshal . nf) hello"
     , ""
@@ -78,7 +80,7 @@ haskell = vcat
     , "    in char increments : marshal cont"
     , "marshal (EFree \"extern_eof\") = \"\""
     , ""
-    , "hello = " <> skiToHs (nominalToSki allowICB Example.helloWorld)
+    , nest 4 ("hello = " <> skiToHs (nominalToSki allowICB Example.helloWorld))
     ]
   where
     skiToHs :: S.Expr -> Doc an
@@ -88,7 +90,7 @@ haskell = vcat
     skiToHs B = "B"
     skiToHs C = "C"
     skiToHs (EFree name) = parens ("EFree" <+> dquotes (pretty name))
-    skiToHs (S.EApp e1 e2) = "EApp" <+> parens (skiToHs e1) <+> parens (skiToHs e2)
+    skiToHs (S.EApp e1 e2) = "EApp" <> group line <> parens (skiToHs e1) <> group line <> parens (skiToHs e2)
 
 python :: Doc ann
 python = vcat
