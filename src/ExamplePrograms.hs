@@ -96,7 +96,7 @@ stdlib prog = define (Var "PROGRAM", prog)
     \ (let (λa b f x. a f (b f x))                     (λ +.    \n\
     \ (let (+ 1)                                       (λ succ. \n\
     \ (let (λn f x. n (λg h. h (g f)) (λ_. x) (λu. u)) (λ pred. \n\
-    \ (let (λa b f x. b pred a)                        (λ -.    \n\
+    \ (let (λa b. b pred a)                            (λ -.    \n\
     \ (let (λm n f x. m (n f) x)                       (λ *.    \n\
     \ (let (λm n. n m)                                 (λ ^.    \n\
     \\n\
@@ -108,7 +108,7 @@ stdlib prog = define (Var "PROGRAM", prog)
     \ (let (λ a b. not (< a b))                           (λ >=.  \n\
     \ (let (λ a b. >= b a)                                (λ <=.  \n\
     \\n\
-    \ (let (λ f. (λ x. f (x x)) (λ x. f (x x))) (λ Y. \n\
+    \ (let (λ f. (λ x. x x) (λ x. f (x x))) (λ Y. \n\
     \\n\
     \ (let (λ a b p. p a b) (λ pair. \n\
     \ (let (λ p. p true)    (λ fst.  \n\
@@ -124,8 +124,9 @@ stdlib prog = define (Var "PROGRAM", prog)
     \ (let (λ f. foldr (λ x xs. cons (f x) xs) nil)                                         (λ map.       \n\
     \ (let (λf. (Y (λ rec x. cons x (rec (f x)))))                                          (λ iterate.   \n\
     \ (let (λx. (Y (λ rec. cons x rec)))                                                    (λ repeat.    \n\
-    \ (let (λ n list. foldr (λ x xs k. ==0 k (const nil) (cons x (xs (- k 1))) nil list n)) (λ take.      \n\
-    \ (let (λ n list. foldr (λ x xs k. ==0 k (const xs) (xs (- k 1)) nil list n))           (λ drop.      \n\
+    \ (let (λ n list. foldr (λ x xs k. ==0 k x (xs (- k 1))) ERROR list n)                  (λ index.     \n\
+    \ (let (λ n list. foldr (λ x xs k. ==0 k (const nil) (cons x (xs (- k 1)))) nil list n) (λ take.      \n\
+    \ (let (λ n list. foldr (λ x xs k. ==0 k (const xs) (xs (- k 1))) nil list n)           (λ drop.      \n\
     \ (let (λ p. foldr (λ x xs. p x (cons x) id xs) nil)                                    (λ filter.    \n\
     \ (let (λ p. foldr (λ x xs. p x (cons x xs) nil) nil)                                   (λ takeWhile. \n\
     \\n\
@@ -143,5 +144,5 @@ stdlib prog = define (Var "PROGRAM", prog)
     \\n\
     \ PROGRAM \
     \\n\
-    \ )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) \
+    \ )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) \
     \ ) (λ value body. body value) "

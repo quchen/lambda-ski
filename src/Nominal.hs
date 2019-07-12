@@ -17,7 +17,6 @@ import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
-import           Data.Text.Prettyprint.Doc.Render.String
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
 import           Text.Megaparsec                           (Parsec, (<?>))
@@ -81,7 +80,10 @@ instance Pretty Var where
     pretty (Var v) = pretty v
 
 instance Show Expr where
-    show = renderString . layoutPretty defaultLayoutOptions . pretty
+    showsPrec _ (EVar (Var name)) = showString (T.unpack name)
+    showsPrec p (EApp e1 e2) = showParen (p > 10)
+        (showsPrec 10 e1 . showChar ' ' . showsPrec (10+1) e2)
+    showsPrec p (EAbs (Var name) e) = showParen (p > 5) (showChar 'λ' . showString (T.unpack name ++ ". ") . showsPrec 5 e)
 
 -- | Replace all occurrences of a free 'Var'iable with some 'Expr'ession. Useful
 -- to include programs in others.

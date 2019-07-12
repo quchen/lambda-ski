@@ -153,6 +153,59 @@ tests = testGroup "Lambda SKI testsuite"
                 (N.EApp fibonacci (nat n))
                 (nat (fib n))
             ]
+        , localOption (Timeout 1000000 "1 second") (testGroup "stdlib"
+            [ testStdlib (Just "let") "let (λ x. x) (λ identity. identity x)" "x"
+            , testGroup "functions"
+                [ testStdlib Nothing "id x" "x"
+                , testStdlib Nothing "const x y" "x"
+                ]
+            , testGroup "Booleans"
+                [testStdlib Nothing "true x y" "x"
+                , testStdlib Nothing "false x y" "y"
+                , testStdlib Nothing "not false" "true"
+                , testStdlib Nothing "not true" "false"
+                , testStdlib Nothing "and true false" "false"
+                , testStdlib Nothing "and true true" "true"
+                , testStdlib Nothing "or false true" "true"
+                , testStdlib Nothing "or false false" "false"
+                ]
+            , testGroup "Naturals"
+                [ testGroup "Arithmetic"
+                    [ testStdlib Nothing "+ 1 2" "3"
+                    , testStdlib Nothing "- 3 2" "1"
+                    , testStdlib Nothing "pred 3" "2"
+                    , testStdlib Nothing "succ 2" "3"
+                    , testStdlib Nothing "* 2 3" "succ (succ (succ (succ (succ (succ 0)))))"
+                    , testStdlib Nothing "^ 2 3" "(* 2 (* 2 2))"
+                    ]
+                , testGroup "Eq/Ord"
+                    [ testStdlib Nothing "== 1 1" "true"
+                    , testStdlib Nothing "!= 1 2" "true"
+                    , testStdlib Nothing "< 1 2" "true"
+                    , testStdlib Nothing "> 1 2" "false"
+                    , testStdlib Nothing "<= 1 2" "true"
+                    , testStdlib Nothing ">= 1 2" "false"
+                    ]
+                ]
+            , testGroup "Pairs"
+                [ testStdlib Nothing "fst (pair a b)" "a"
+                , testStdlib Nothing "snd (pair a b)" "b"
+                ]
+            , testGroup "Lists"
+                [ testStdlib Nothing "null nil" "true"
+                , testStdlib Nothing "null (cons a b)" "false"
+                , testStdlib Nothing "head (cons a b)" "a"
+                , testStdlib Nothing "tail (cons a b)" "b"
+                , testStdlib (Just "map (1+) [1,2]") "map (+ 1) (cons 1 (cons 2 nil))" "cons 2 (cons 3 nil)"
+                , testStdlib Nothing "head (repeat a)" "a"
+                , testStdlib Nothing "index 3 (repeat a)" "a"
+                , testStdlib Nothing "index 3 (iterate (+ 1) 0)" "3"
+                , testStdlib Nothing "take 2 (cons 0 (cons 1 (cons 2 nil)))" "cons 0 (cons 1 nil)"
+                , testStdlib Nothing "drop 2 (cons 0 (cons 1 (cons 2 nil)))" "cons 2 nil"
+                , testStdlib Nothing "filter (!= 1) cons 0 (cons 1 (cons 2 nil))" "cons 0 (cons 2 nil)"
+                , testStdlib Nothing "takeWhile (!= 1) cons 0 (cons 1 (cons 2 nil))" "cons 0 nil"
+                ]
+            ])
         ]
         , testGroup "SKICB ⇝ SKICB"
             [ testGroup "Individual combinators"
@@ -228,6 +281,15 @@ testReduceNominalViaDeBruijn mTestName input expected = testCase testName test
     testName = fromMaybe (show input) mTestName
     actual = (Actual . deBruijnToNominal . evalTo B.normalForm . nominalToDeBruijn) input
     test = assertEqual Nothing actual (Expected expected)
+
+testStdlib :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
+testStdlib mTestName input expected = testCase testName test
+  where
+    testName = fromMaybe (show input) mTestName
+    eval = evalTo B.normalForm . nominalToDeBruijn . stdlib
+    actual = Actual (eval input)
+    expected' = Expected (eval expected)
+    test = assertEqual Nothing actual expected'
 
 testReduceSki :: Maybe TestName -> S.Expr -> S.Expr -> TestTree
 testReduceSki mTestName input expected = testCase testName test
