@@ -192,18 +192,29 @@ tests = testGroup "Lambda SKI testsuite"
                 , testStdlib Nothing "snd (pair a b)" "b"
                 ]
             , testGroup "Lists"
-                [ testStdlib Nothing "null nil" "true"
-                , testStdlib Nothing "null (cons a b)" "false"
+                [ testGroup "null"
+                    [ testStdlib Nothing "null nil" "true"
+                    , testStdlib Nothing "null (cons a b)" "false"
+                    ]
                 , testStdlib Nothing "head (cons a b)" "a"
                 , testStdlib Nothing "tail (cons a b)" "b"
                 , testStdlib (Just "map (1+) [1,2]") "map (+ 1) (cons 1 (cons 2 nil))" "cons 2 (cons 3 nil)"
                 , testStdlib Nothing "head (repeat a)" "a"
-                , testStdlib Nothing "index 3 (repeat a)" "a"
-                , testStdlib Nothing "index 3 (iterate (+ 1) 0)" "3"
-                , testStdlib Nothing "take 2 (cons 0 (cons 1 (cons 2 nil)))" "cons 0 (cons 1 nil)"
-                , testStdlib Nothing "drop 2 (cons 0 (cons 1 (cons 2 nil)))" "cons 2 nil"
+                , testGroup "index"
+                    [ testStdlib Nothing "index 3 (repeat a)" "a"
+                    , testStdlib Nothing "index 3 (iterate (+ 1) 0)" "3"
+                    ]
+                , testGroup "take"
+                    [ testStdlib (Just "take 2 []") "take 2 nil" "nil"
+                    , testStdlib (Just "take 2 [0,1,2]") "take 2 (cons 0 (cons 1 (cons 2 nil)))" "cons 0 (cons 1 nil)"
+                    ]
+                , testGroup "drop"
+                    [ testStdlib (Just "drop 2 []") "drop 2 nil" "nil"
+                    , testStdlib (Just "drop 2 [0]") "drop 2 (cons 0 nil)" "nil"
+                    , testStdlib (Just "drop 2 [0,1,2]") "drop 2 (cons 0 (cons 1 (cons 2 nil)))" "cons 2 nil"
+                    ]
                 , testStdlib Nothing "filter (!= 1) cons 0 (cons 1 (cons 2 nil))" "cons 0 (cons 2 nil)"
-                , testStdlib Nothing "takeWhile (!= 1) cons 0 (cons 1 (cons 2 nil))" "cons 0 nil"
+                -- , testStdlib (Just "takeWhile (3<=x) [0..]") "takeWhile (λx. <= x 3) (iterate (+1) 0)" "cons 0 (cons 1 (cons 2 (cons 3 nil)))"
                 ]
             ])
         ]

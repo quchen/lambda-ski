@@ -124,9 +124,9 @@ stdlib prog = define (Var "PROGRAM", prog)
     \ (let (λ f. foldr (λ x xs. cons (f x) xs) nil)                                         (λ map.       \n\
     \ (let (λf. Y (λ rec x. cons x (rec (f x))))                                            (λ iterate.   \n\
     \ (let (λx. Y (cons x))                                                                 (λ repeat.    \n\
-    \ (let (λ n list. foldr (λ x xs k. ==0 k x (xs (- k 1))) ERROR list n)                  (λ index.     \n\
-    \ (let (λ n list. foldr (λ x xs k. ==0 k (const nil) (cons x (xs (- k 1)))) nil list n) (λ take.      \n\
-    \ (let (λ n list. foldr (λ x xs k. ==0 k (const xs) (xs (- k 1))) nil list n)           (λ drop.      \n\
+    \ (let (λ n list. foldr (λ x xs k. ==0 k x (xs (- k 1)))            ERROR       list n) (λ index.     \n\
+    \ (let (λ n list. foldr (λ x xs k. ==0 k nil (cons x (xs (- k 1)))) (const nil) list n) (λ take.      \n\
+    \ (let (λ n list. foldr (λ x xs k. ==0 k xs (xs (- k 1)))           (const nil) list n) (λ drop.      \n\
     \ (let (λ p. foldr (λ x xs. p x (cons x) id xs) nil)                                    (λ filter.    \n\
     \ (let (λ p. foldr (λ x xs. p x (cons x xs) nil) nil)                                   (λ takeWhile. \n\
     \\n\
