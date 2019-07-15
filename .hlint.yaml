@@ -26,12 +26,6 @@
 - ignore: {name: "Use tuple-section"}
 - ignore: {name: "Use list comprehension"}
 
-# I don’t like $
-- error:
-    name: Use parentheses instead of $
-    lhs: f $ x
-    rhs: f (x)
-
 # AMP fallout
 - error:
     name: generalize mapM
