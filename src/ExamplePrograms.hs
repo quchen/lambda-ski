@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes       #-}
 
 
 
 module ExamplePrograms where
 
-import Nominal as N
+import Nominal     as N
 import QuasiQuoter
 
 

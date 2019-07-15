@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Nominal (
     Var(..),
@@ -18,11 +18,11 @@ import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
-import           Language.Haskell.TH.Lift
-import           Language.Haskell.TH
-import           Language.Haskell.TH.Quote
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
+import           Language.Haskell.TH
+import           Language.Haskell.TH.Lift
+import           Language.Haskell.TH.Quote
 import           Text.Megaparsec                           (Parsec, (<?>))
 import qualified Text.Megaparsec                           as P
 import qualified Text.Megaparsec.Char                      as P

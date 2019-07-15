@@ -6,8 +6,8 @@ module Marshal where
 
 
 import           Control.Applicative
-import           Data.String
 import           Data.Char
+import           Data.String
 import           Data.Text           (Text)
 import qualified Data.Text           as T
 import           Numeric.Natural
