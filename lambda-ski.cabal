@@ -41,10 +41,10 @@ executable repl
     build-depends:
           base
         , lambda-ski
-        , text
         , haskeline
         , prettyprinter
         , prettyprinter-ansi-terminal
+        , text
     hs-source-dirs:      app
     main-is:             Repl.hs
     ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
@@ -66,11 +66,12 @@ test-suite lambda-ski-test
     build-depends:
           base
         , lambda-ski
+        , containers
+        , HUnit
         , tasty
         , tasty-hunit
-        , HUnit
+        , tasty-quickcheck
         , text
-        , containers
     ghc-options:         -threaded -rtsopts -with-rtsopts=-N -Wall
     type:                exitcode-stdio-1.0
     hs-source-dirs:      test

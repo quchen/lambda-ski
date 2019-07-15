@@ -5,16 +5,17 @@ module Main (main) where
 
 
 import           Data.Maybe
-import           Data.Text  (Text)
-import qualified Data.Text  as T
-
+import           Data.Text             (Text)
+import qualified Data.Text             as T
 import           Test.Tasty
-import           Test.Tasty.HUnit hiding (assertEqual)
-import qualified Test.Tasty.HUnit as HUnit
+import           Test.Tasty.HUnit      hiding (assertEqual)
+import qualified Test.Tasty.HUnit      as HUnit
+import           Test.Tasty.QuickCheck
 
 import Convert
 import DeBruijn        as B
 import ExamplePrograms
+import Marshal
 import Nominal         as N
 import Ski             as S
 
@@ -138,85 +139,122 @@ tests = testGroup "Lambda SKI testsuite"
                 \ (λn f x. f (n f x)) \
                 \ (λf x. f x)         \
                 \ (λf x. f (f x))     "
-                (nat 3)
-            , let n = 5
+                (toNominal (3 :: Int))
+            , let n = 5 :: Int
                   fac k = product [1..k]
               in testReduceNominalViaDeBruijn
                 (Just ("factorial(" ++ show n ++ ")"))
-                (N.EApp factorial (nat n))
-                (nat (fac n))
-            , let n = 8
-                  fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
+                (N.EApp factorial (toNominal n))
+                (toNominal (fac n))
+            , let n = 8 :: Int
+                  fibs = (0 :: Int) : 1 : zipWith (+) fibs (tail fibs)
                   fib k = fibs !! k
               in testReduceNominalViaDeBruijn
                 (Just ("fibonacci(" ++ show n ++ ")"))
-                (N.EApp fibonacci (nat n))
-                (nat (fib n))
+                (N.EApp fibonacci (toNominal n))
+                (toNominal (fib n))
             ]
-        , localOption (Timeout 1000000 "1 second") (testGroup "stdlib"
-            [ testStdlib (Just "let") "let (λ x. x) (λ identity. identity x)" "x"
+        , localOption (QuickCheckMaxSize 10) $ testGroup "Marshalling"
+            [ testMarshalling "()" (arbitrary :: Gen ())
+            , testMarshalling "Bool" (arbitrary :: Gen Bool)
+            , testMarshalling "Int" (fmap getNonNegative arbitrary :: Gen Int)
+            , testMarshalling "Integer" (fmap getNonNegative arbitrary :: Gen Integer)
+            , testMarshalling "Maybe Int" (oneof
+                [ pure (Nothing :: Maybe Int)
+                , fmap (Just . getNonNegative) arbitrary
+                ])
+            , testMarshalling "Either Bool Int" (oneof
+                [ fmap Left arbitrary
+                , fmap (Right . getNonNegative) arbitrary
+                ] :: Gen (Either Bool Int))
+            , testMarshalling "[Int]" (listOf (fmap getNonNegative arbitrary) :: Gen [Int])
+            , testMarshalling "(Int, Bool)" (do
+                NonNegative n <- arbitrary
+                b <- arbitrary
+                pure (n,b) :: Gen (Int, Bool))
+            , testMarshalling "(Int, Bool, Int)" (do
+                NonNegative n <- arbitrary
+                b <- arbitrary
+                NonNegative n' <- arbitrary
+                pure (n,b,n') :: Gen (Int, Bool,Int))
+            ]
+        , localOption (Timeout 1000000 "1 second") $ testGroup "stdlib"
+            [ testStdlib (Just "let") "let (λ x. x) (λ identity. identity x)" (FreeVar "x")
             , testGroup "functions"
-                [ testStdlib Nothing "id x" "x"
-                , testStdlib Nothing "const x y" "x"
+                [ testStdlib Nothing "id x" (FreeVar "x")
+                , testStdlib Nothing "const x y" (FreeVar "x")
                 ]
             , testGroup "Booleans"
-                [testStdlib Nothing "true x y" "x"
-                , testStdlib Nothing "false x y" "y"
-                , testStdlib Nothing "not false" "true"
-                , testStdlib Nothing "not true" "false"
-                , testStdlib Nothing "and true false" "false"
-                , testStdlib Nothing "and true true" "true"
-                , testStdlib Nothing "or false true" "true"
-                , testStdlib Nothing "or false false" "false"
+                [ testStdlib Nothing "True x y" (FreeVar "x")
+                , testStdlib Nothing "False x y" (FreeVar "y")
+                , testStdlib Nothing "not False" True
+                , testStdlib Nothing "not True" False
+                , testStdlib Nothing "and True False" False
+                , testStdlib Nothing "and True True" True
+                , testStdlib Nothing "or False True" True
+                , testStdlib Nothing "or False False" False
                 ]
             , testGroup "Naturals"
                 [ testGroup "Arithmetic"
-                    [ testStdlib Nothing "+ 1 2" "3"
-                    , testStdlib Nothing "- 3 2" "1"
-                    , testStdlib Nothing "pred 3" "2"
-                    , testStdlib Nothing "succ 2" "3"
-                    , testStdlib Nothing "* 2 3" "succ (succ (succ (succ (succ (succ 0)))))"
-                    , testStdlib Nothing "^ 2 3" "(* 2 (* 2 2))"
+                    [ testStdlib Nothing "+ 1 2" (3 :: Int)
+                    , testStdlib Nothing "- 3 2" (1 :: Int)
+                    , testStdlib Nothing "pred 3" (2 :: Int)
+                    , testStdlib Nothing "succ 2" (3 :: Int)
+                    , testStdlib Nothing "* 2 3" (6 :: Int)
+                    , testStdlib Nothing "^ 2 3" (8 :: Int)
                     ]
                 , testGroup "Eq/Ord"
-                    [ testStdlib Nothing "== 1 1" "true"
-                    , testStdlib Nothing "!= 1 2" "true"
-                    , testStdlib Nothing "< 1 2" "true"
-                    , testStdlib Nothing "> 1 2" "false"
-                    , testStdlib Nothing "<= 1 2" "true"
-                    , testStdlib Nothing ">= 1 2" "false"
+                    [ testStdlib Nothing "== 1 1" True
+                    , testStdlib Nothing "!= 1 2" True
+                    , testStdlib Nothing "< 1 2" True
+                    , testStdlib Nothing "> 1 2" False
+                    , testStdlib Nothing "<= 1 2" True
+                    , testStdlib Nothing ">= 1 2" False
                     ]
                 ]
             , testGroup "Pairs"
-                [ testStdlib Nothing "fst (pair a b)" "a"
-                , testStdlib Nothing "snd (pair a b)" "b"
+                [ testStdlib Nothing "fst (pair a b)" (FreeVar "a")
+                , testStdlib Nothing "snd (pair a b)" (FreeVar "b")
                 ]
             , testGroup "Lists"
                 [ testGroup "null"
-                    [ testStdlib Nothing "null nil" "true"
-                    , testStdlib Nothing "null (cons a b)" "false"
+                    [ testStdlib Nothing "null []" True
+                    , testStdlib Nothing "null (: a b)" False
                     ]
-                , testStdlib Nothing "head (cons a b)" "a"
-                , testStdlib Nothing "tail (cons a b)" "b"
-                , testStdlib (Just "map (1+) [1,2]") "map (+ 1) (cons 1 (cons 2 nil))" "cons 2 (cons 3 nil)"
-                , testStdlib Nothing "head (repeat a)" "a"
+                , testStdlib Nothing "head (: a b)" (FreeVar "a")
+                , testStdlib Nothing "tail (: a b)" (FreeVar "b")
+                , testStdlib (Just "map (1+) [1,2]") "map (+ 1) (: 1 (: 2 []))" [2, 3 :: Int]
+                , testStdlib (Just "[1] ++ [2,3]") "++ (: 1 []) (: 2 (: 3 []))" [1, 2, 3 :: Int]
+                , testGroup "zip"
+                    [ testStdlib (Just "zipWith f [] ys")
+                        "zipWith f [] ys"
+                        ([] :: [Int])
+                    , testStdlib (Just "zipWith const [1] [x]")
+                        "zipWith const (: 1 Nil) (: x Nil)"
+                        [1 :: Int]
+                    , testStdlib
+                        (Just "zipWith (+) [1,2,3] [4,5,6]")
+                        "zipWith + (: 1 (: 2 (: 3 []))) (: 4 (: 5 (: 6 [])))"
+                        (zipWith (+) [1,2,3] [4,5,6 :: Int])
+                    ]
+                , testStdlib Nothing "head (repeat a)" (FreeVar "a")
                 , testGroup "index"
-                    [ testStdlib Nothing "index 3 (repeat a)" "a"
-                    , testStdlib Nothing "index 3 (iterate (+ 1) 0)" "3"
+                    [ testStdlib Nothing "index 3 (repeat a)" (FreeVar "a")
+                    , testStdlib Nothing "index 3 (iterate (+ 1) 0)" (3 :: Int)
                     ]
                 , testGroup "take"
-                    [ testStdlib (Just "take 2 []") "take 2 nil" "nil"
-                    , testStdlib (Just "take 2 [0,1,2]") "take 2 (cons 0 (cons 1 (cons 2 nil)))" "cons 0 (cons 1 nil)"
+                    [ testStdlib (Just "take 2 []") "take 2 []" ([] :: [()])
+                    , testStdlib (Just "take 2 [0,1,2]") "take 2 (: 0 (: 1 (: 2 [])))" [0, 1 :: Int]
                     ]
                 , testGroup "drop"
-                    [ testStdlib (Just "drop 2 []") "drop 2 nil" "nil"
-                    , testStdlib (Just "drop 2 [0]") "drop 2 (cons 0 nil)" "nil"
-                    , testStdlib (Just "drop 2 [0,1,2]") "drop 2 (cons 0 (cons 1 (cons 2 nil)))" "cons 2 nil"
+                    [ testStdlib (Just "drop 2 []") "drop 2 []" ([] :: [()])
+                    , testStdlib (Just "drop 2 [0]") "drop 2 (: 0 [])" ([] :: [()])
+                    , testStdlib (Just "drop 2 [0,1,2]") "drop 2 (: 0 (: 1 (: 2 [])))" [2 :: Int]
                     ]
-                , testStdlib Nothing "filter (!= 1) cons 0 (cons 1 (cons 2 nil))" "cons 0 (cons 2 nil)"
-                -- , testStdlib (Just "takeWhile (3<=x) [0..]") "takeWhile (λx. <= x 3) (iterate (+1) 0)" "cons 0 (cons 1 (cons 2 (cons 3 nil)))"
+                , testStdlib Nothing "filter (!= 1) : 0 (: 1 (: 2 []))" [0, 2 :: Int]
+                -- , testStdlib (Just "takeWhile (3<=x) [0..]") "takeWhile (λx. <= x 3) (iterate (+1) 0)" [0,1,2,3 :: Int]
                 ]
-            ])
+            ]
         ]
         , testGroup "SKICB ⇝ SKICB"
             [ testGroup "Individual combinators"
@@ -251,7 +289,7 @@ tests = testGroup "Lambda SKI testsuite"
                 \ (λn f x. f (n f x)) \
                 \ (λf x. f x)         \
                 \ (λf x. f (f x))     "
-                (nat 3)
+                (toNominal (3 :: Int))
             ]
         , testGroup "Hello, world!"
             [ testHelloWorldNominal
@@ -293,13 +331,13 @@ testReduceNominalViaDeBruijn mTestName input expected = testCase testName test
     actual = (Actual . deBruijnToNominal . evalTo B.normalForm . nominalToDeBruijn) input
     test = assertEqual Nothing actual (Expected expected)
 
-testStdlib :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
+testStdlib :: ToNominal a => Maybe TestName -> N.Expr -> a -> TestTree
 testStdlib mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
     eval = evalTo B.normalForm . nominalToDeBruijn . stdlib
     actual = Actual (eval input)
-    expected' = Expected (eval expected)
+    expected' = Expected (eval (toNominal expected))
     test = assertEqual Nothing actual expected'
 
 testReduceSki :: Maybe TestName -> S.Expr -> S.Expr -> TestTree
@@ -361,6 +399,15 @@ testParseShowInverse testName input parser = testCase testName test
         (Actual actual)
         (Expected expected)
 
+testMarshalling
+    :: (Arbitrary a, Show a, Eq a, FromDeBruijn a, ToNominal a)
+    => TestName
+    -> Gen a
+    -> TestTree
+testMarshalling testName gen = testProperty testName test
+  where
+    test = forAll gen (\x -> (fromDeBruijn . nominalToDeBruijn . toNominal) x == Just x)
+
 previewError :: String -> String
 previewError = dotdot 256 . T.unpack . T.unwords . map T.strip . T.lines . T.pack
   where
@@ -368,12 +415,6 @@ previewError = dotdot 256 . T.unpack . T.unwords . map T.strip . T.lines . T.pac
     dotdot _ []     = ""
     dotdot 0 _      = "…"
     dotdot n (x:xs) = x : dotdot (n-1) xs
-
-
-nat :: Int -> N.Expr
-nat n = N.EAbs (Var "f")
-               (N.EAbs (Var "x")
-                       (iterate (N.EApp (N.EVar (Var "f"))) (N.EVar (Var "x")) !! n))
 
 showT :: Show a => a -> Text
 showT = T.pack . show
