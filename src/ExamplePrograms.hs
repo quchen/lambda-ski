@@ -91,6 +91,7 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
     (λ let.
     (let (λ x. x)   (λ id.
     (let (λ x _. x) (λ const.
+    (let (λ f g x. f (g x)) (λ compose.
 
     (let (λ t _. t)          (λ True.
     (let (λ _ f. f)          (λ False.
@@ -135,7 +136,7 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
     (let (λ f. (Y (λ rec xs ys. or (null xs) (null ys) [] (: (f (head xs) (head ys)) (rec (tail xs) (tail ys)))))) (λ zipWith.
     (let (zipWith pair)                                                                   (λ zip.
     (let (λf. Y (λ rec x. : x (rec (f x))))                                               (λ iterate.
-    (let (λx. Y (: x))                                                                    (λ repeat.
+    (let (compose Y :)                                                                    (λ repeat.
     (let (λ n list. foldr (λ x xs k. ==0 k x   (xs (- k 1)))          ERROR       list n) (λ index.
     (let (λ n list. foldr (λ x xs k. ==0 k [] (: x (xs (- k 1)))) (const []) list n)      (λ take.
     (let (Y (λ rec n list. or (==0 n) (null list) list (rec (- n 1) (tail list))))        (λ drop.
@@ -156,6 +157,6 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
 
     PROGRAM
 
-    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
     ) (λ value body. body value)
     |]
