@@ -230,12 +230,12 @@ tests = testGroup "Lambda SKI testsuite"
                         "zipWith f [] ys"
                         ([] :: [Int])
                     , testStdlib (Just "zipWith const [1] [x]")
-                        "zipWith const (: 1 Nil) (: x Nil)"
+                        "zipWith const (: 1 []) (: x [])"
                         [1 :: Int]
                     , testStdlib
-                        (Just "zipWith (+) [1,2,3] [4,5,6]")
-                        "zipWith + (: 1 (: 2 (: 3 []))) (: 4 (: 5 (: 6 [])))"
-                        (zipWith (+) [1,2,3] [4,5,6 :: Int])
+                        (Just "zipWith (+) [1,2,3] [3,2,1]")
+                        "zipWith + (: 1 (: 2 (: 3 []))) (: 3 (: 2 (: 1 [])))"
+                        (zipWith (+) [1,2,3] [3,2,1 :: Int])
                     ]
                 , testStdlib Nothing "head (repeat a)" (FreeVar "a")
                 , testGroup "index"
@@ -251,8 +251,8 @@ tests = testGroup "Lambda SKI testsuite"
                     , testStdlib (Just "drop 2 [0]") "drop 2 (: 0 [])" ([] :: [()])
                     , testStdlib (Just "drop 2 [0,1,2]") "drop 2 (: 0 (: 1 (: 2 [])))" [2 :: Int]
                     ]
-                , testStdlib Nothing "filter (!= 1) : 0 (: 1 (: 2 []))" [0, 2 :: Int]
-                -- , testStdlib (Just "takeWhile (3<=x) [0..]") "takeWhile (λx. <= x 3) (iterate (+1) 0)" [0,1,2,3 :: Int]
+                , testStdlib Nothing "filter (!= 1) (: 0 (: 1 (: 2 [])))" (filter (/= 1) [0,1,2 :: Int])
+                , testStdlib (Just "takeWhile (3 <= x) [0..]") "takeWhile (λx. <= x 3) (iterate (+ 1) 0)" (takeWhile (<= 3) [0::Int ..])
                 ]
             ]
         ]
