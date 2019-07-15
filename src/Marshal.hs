@@ -7,6 +7,7 @@ module Marshal where
 
 import           Control.Applicative
 import           Data.String
+import           Data.Char
 import           Data.Text           (Text)
 import qualified Data.Text           as T
 import           Numeric.Natural
@@ -38,6 +39,8 @@ instance ToNominal Bool where
 instance ToNominal Int where toNominal = natNominal
 instance ToNominal Integer where toNominal = natNominal
 instance ToNominal Natural where toNominal = natNominal
+instance ToNominal Char where toNominal = natNominal . ord
+instance ToNominal Text where toNominal = toNominal . T.unpack
 
 instance ToNominal () where
     toNominal _ = "λ {}. {}"
@@ -79,6 +82,8 @@ instance FromDeBruijn Bool where
 instance FromDeBruijn Int where fromDeBruijn = deBruijnNat
 instance FromDeBruijn Integer where fromDeBruijn = deBruijnNat
 instance FromDeBruijn Natural where fromDeBruijn = deBruijnNat
+instance FromDeBruijn Char where fromDeBruijn = fmap chr . deBruijnNat
+instance FromDeBruijn Text where fromDeBruijn = fmap T.pack . (fromDeBruijn :: B.Expr -> Maybe String)
 
 deBruijnNat :: Num a => B.Expr -> Maybe a
 deBruijnNat (B.EAbs (B.EAbs n)) = countApps 0 n
