@@ -14,6 +14,7 @@ module Nominal (
 
 import           Control.Applicative
 import           Data.Char
+import           Data.Functor
 import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
@@ -171,7 +172,10 @@ eExprP = do
     lAbs xs e = foldr EAbs e xs
 
 tok :: Parser a -> Parser a
-tok p = p <* P.space
+tok p = p <* P.space -- <* comment
+
+comment :: Parser ()
+comment = P.try (P.string "-- ") *> P.skipManyTill P.newline (() <$ P.anySingle)
 
 parenthesized :: Parser a -> Parser a
 parenthesized = P.between (tok (P.char '(')) (tok (P.char ')'))
