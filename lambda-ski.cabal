@@ -18,11 +18,13 @@ library
           base >= 4.7 && < 5
         , containers
         , megaparsec
-        , text
-        , transformers
         , mtl
         , prettyprinter
         , prettyprinter-ansi-terminal
+        , text
+        , transformers
+        , template-haskell
+        , th-lift
     hs-source-dirs:      src
     exposed-modules:     Convert
                        , DeBruijn
@@ -31,6 +33,7 @@ library
                        , Ski
                        , ExamplePrograms
                        , Marshal
+                       , QuasiQuoter
     default-language:    Haskell2010
     ghc-options:         -Wall
 

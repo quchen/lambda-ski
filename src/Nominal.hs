@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Nominal (
     Var(..),
@@ -17,6 +18,9 @@ import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
+import           Language.Haskell.TH.Lift
+import           Language.Haskell.TH
+import           Language.Haskell.TH.Quote
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
 import           Text.Megaparsec                           (Parsec, (<?>))
@@ -28,6 +32,9 @@ import qualified Text.Megaparsec.Char                      as P
 newtype Var = Var Text
     deriving (Eq, Ord, Show)
 
+instance IsString Var where
+    fromString = Var . T.pack
+
 data Expr
     = EVar Var
     | EApp Expr Expr
@@ -36,6 +43,14 @@ data Expr
 
 instance IsString Expr where
     fromString = unsafeParse . T.pack
+
+instance Lift Expr where
+    lift (EVar var) = [| EVar $(lift var) |]
+    lift (EApp f x) = [| EApp $(lift f)  $(lift x) |]
+    lift (EAbs var body) = [| EAbs $(lift var) $(lift body) |]
+
+instance Lift Var where
+    lift (Var name) = [| Var (T.pack $(lift (T.unpack name))) |]
 
 prettyAnsi :: Expr -> Doc AnsiStyle
 prettyAnsi = prettyPrec 0
