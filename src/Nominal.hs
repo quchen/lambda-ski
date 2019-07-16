@@ -14,16 +14,13 @@ module Nominal (
 
 import           Control.Applicative
 import           Data.Char
-import           Data.Functor
 import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
-import           Language.Haskell.TH
-import           Language.Haskell.TH.Lift
-import           Language.Haskell.TH.Quote
+import           Language.Haskell.TH.Lift                  (Lift (..))
 import           Text.Megaparsec                           (Parsec, (<?>))
 import qualified Text.Megaparsec                           as P
 import qualified Text.Megaparsec.Char                      as P

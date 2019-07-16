@@ -5,10 +5,8 @@ module QuasiQuoter (nominal) where
 
 
 
-import           Data.Either
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
-import           Language.Haskell.TH
 import           Language.Haskell.TH.Lift
 import           Language.Haskell.TH.Quote
 
