@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module Ski (
     Expr(..),
@@ -19,6 +20,7 @@ import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.String
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
+import           Language.Haskell.TH.Lift                  (Lift (..))
 import           Text.Megaparsec                           (Parsec)
 import qualified Text.Megaparsec                           as P
 import qualified Text.Megaparsec.Char                      as P
@@ -63,6 +65,15 @@ instance Show Expr where
             | isSpace x && isSpace y = collapse (y:rest)
         collapse (x:rest) = x : collapse rest
         collapse "" = ""
+
+instance Lift Expr where
+    lift S = [| S |]
+    lift K = [| K |]
+    lift I = [| I |]
+    lift C = [| C |]
+    lift B = [| B |]
+    lift (EFree name) = [| EFree (T.pack $(lift (T.unpack name))) |]
+    lift (EApp f x) = [| EApp $(lift f) $(lift x) |]
 
 data ParensNecessary = Parens | NoParens
 

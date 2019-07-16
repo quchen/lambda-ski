@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 
 module DeBruijn (
     Expr(..),
@@ -25,6 +26,7 @@ import qualified Data.Text                                 as T
 import           Data.Text.Prettyprint.Doc
 import           Data.Text.Prettyprint.Doc.Render.Terminal
 import           Data.Void
+import           Language.Haskell.TH.Lift                  (Lift (..))
 import           Numeric.Natural
 import           Text.Megaparsec                           (Parsec, (<?>))
 import qualified Text.Megaparsec                           as P
@@ -56,6 +58,12 @@ instance Show Expr where
         spacer = case e of
             EAbs{} -> id
             _other -> showChar ' '
+
+instance Lift Expr where
+    lift (EVar n name) = [| EVar $(lift n) T.pack $(lift (T.unpack name)) |]
+    lift (EVarFree name) = [| EVarFree T.pack $(lift (T.unpack name)) |]
+    lift (EApp f x) = [| EApp $(lift f) $(lift x) |]
+    lift (EAbs body) = [| EAbs $(lift body) |]
 
 instance Pretty Expr where
     pretty = unAnnotate . prettyAnsi
