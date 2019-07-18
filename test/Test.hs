@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
 
 module Main (main) where
 
@@ -15,6 +16,7 @@ import           Test.Tasty.QuickCheck
 import Convert
 import DeBruijn        as B
 import ExamplePrograms
+import QuasiQuoter
 import Marshal
 import Nominal         as N
 import Ski             as S
@@ -130,15 +132,17 @@ tests = testGroup "Lambda SKI testsuite"
                 "ok"
             , testReduceNominalViaDeBruijn
                 (Just "2 + 1")
-                " (λ+1 1 2.           \
-                \     (λ+.            \
-                \         + 2 1       \
-                \     )               \
-                \     (λm n. m +1 n)  \
-                \ )                   \
-                \ (λn f x. f (n f x)) \
-                \ (λf x. f x)         \
-                \ (λf x. f (f x))     "
+                [nominal|
+                    (λ+1 1 2.
+                        (λ+.
+                            + 2 1
+                        )
+                        (λm n. m +1 n)
+                    )
+                    (λn f x. f (n f x))
+                    (λf x. f x)
+                    (λf x. f (f x))
+                |]
                 (toNominal (3 :: Int))
             , let n = 5 :: Int
                   fac k = product [1..k]
@@ -280,15 +284,17 @@ tests = testGroup "Lambda SKI testsuite"
                 "ok"
             , testReduceSkiViaNominal
                 (Just "2 + 1")
-                " (λ+1 1 2.           \
-                \     (λ+.            \
-                \         + 2 1       \
-                \     )               \
-                \     (λm n. m +1 n)  \
-                \ )                   \
-                \ (λn f x. f (n f x)) \
-                \ (λf x. f x)         \
-                \ (λf x. f (f x))     "
+                [nominal|
+                    (λ+1 1 2.
+                        (λ+.
+                            + 2 1
+                        )
+                        (λm n. m +1 n)
+                    )
+                    (λn f x. f (n f x))
+                    (λf x. f x)
+                    (λf x. f (f x))
+                |]
                 (toNominal (3 :: Int))
             ]
         , testGroup "Hello, world!"
@@ -311,11 +317,11 @@ testNominalToDeBruijn input expected = testCase testName test
     test = assertEqual Nothing (Actual actual) (Expected expected)
 
 testNominalToDeBruijnAndBack :: Maybe TestName -> N.Expr -> TestTree
-testNominalToDeBruijnAndBack mTestName nominal = testCase testName test
+testNominalToDeBruijnAndBack mTestName source = testCase testName test
   where
-    testName = fromMaybe (show nominal) mTestName
-    actual = (Actual . deBruijnToNominal . nominalToDeBruijn) nominal
-    test = assertEqual Nothing actual (Expected nominal)
+    testName = fromMaybe (show source) mTestName
+    actual = (Actual . deBruijnToNominal . nominalToDeBruijn) source
+    test = assertEqual Nothing actual (Expected source)
 
 testReduceDeBruijn :: Maybe TestName -> B.Expr -> B.Expr -> TestTree
 testReduceDeBruijn mTestName input expected = testCase testName test
