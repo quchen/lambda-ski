@@ -216,6 +216,8 @@ tests = testGroup "Lambda SKI testsuite"
                     , testStdlib Nothing "<= 1 2" True
                     , testStdlib Nothing ">= 1 2" False
                     ]
+                , testStdlib Nothing "even 2" (even (2::Int))
+                , testStdlib Nothing "odd 2" (odd (2::Int))
                 ]
             , testGroup "Pairs"
                 [ testStdlib Nothing "fst (pair a b)" (FreeVar "a")
@@ -270,7 +272,7 @@ tests = testGroup "Lambda SKI testsuite"
         ]
         , testGroup "SKICB ⇝ SKICB"
             [ testGroup "Individual combinators"
-                [testReduceSki Nothing "I x"     "x"
+                [ testReduceSki Nothing "I x"     "x"
                 , testReduceSki Nothing "K x y"   "x"
                 , testReduceSki Nothing "S f g x" "f x (g x)"
                 , testReduceSki Nothing "C f y x" "f x y"

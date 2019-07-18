@@ -132,21 +132,20 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
 
     (let (λ f. (λ x. x x) (λ x. f (x x))) (λ Y.
 
-    (let (TODO) (λ {even/odd}.
-    (let (fst {even/odd}) (λ even.
-    (let (snd {even/odd}) (λ odd.
+    (let (λ n. n not True)  (λ even.
+    (let (compose not even) (λ odd.
 
     (let (λ a b p. p a b) (λ pair.
     (let (λ p. p True)    (λ fst.
     (let (λ p. p False)   (λ snd.
 
-    (let (pair 0)                             (λ Left.
-    (let (pair 1)                             (λ Right.
-    (let (λ l r e. ==0 (fst e) e l r (snd e)) (λ either.
-    (let (either (const True) (const False))  (λ isLeft.
-    (let (either (const False) (const True))  (λ isRight.
-    (let (either ERROR id)                    (λ fromRight.
-    (let (either id ERROR)                    (λ fromLeft.
+    (let (pair False)                   (λ Left.
+    (let (pair True)                    (λ Right.
+    (let (λ l r e. (fst e) r l (snd e)) (λ either.
+    (let (compose not fst)              (λ isLeft.
+    (let fst                            (λ isRight.
+    (let (either ERROR id)              (λ fromRight.
+    (let (either id ERROR)              (λ fromLeft.
 
     (let Right                      (λ Just.
     (let (Left {})                  (λ Nothing.
@@ -201,6 +200,6 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
 
     PROGRAM
 
-    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
     ) (λ value body. body value)
     |]
