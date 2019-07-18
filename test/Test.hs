@@ -6,6 +6,7 @@ module Main (main) where
 
 
 import           Data.Maybe
+import           Data.List
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Test.Tasty
@@ -247,16 +248,23 @@ tests = testGroup "Lambda SKI testsuite"
                     , testStdlib Nothing "index 3 (iterate (+ 1) 0)" (3 :: Int)
                     ]
                 , testGroup "take"
-                    [ testStdlib (Just "take 2 []") "take 2 []" ([] :: [()])
+                    [ testStdlib (Just "take 2 []")      "take 2 []"                   ([] :: [()])
                     , testStdlib (Just "take 2 [0,1,2]") "take 2 (: 0 (: 1 (: 2 [])))" [0, 1 :: Int]
                     ]
                 , testGroup "drop"
-                    [ testStdlib (Just "drop 2 []") "drop 2 []" ([] :: [()])
-                    , testStdlib (Just "drop 2 [0]") "drop 2 (: 0 [])" ([] :: [()])
+                    [ testStdlib (Just "drop 2 []")      "drop 2 []"                   ([] :: [()])
+                    , testStdlib (Just "drop 2 [0]")     "drop 2 (: 0 [])"             ([] :: [()])
                     , testStdlib (Just "drop 2 [0,1,2]") "drop 2 (: 0 (: 1 (: 2 [])))" [2 :: Int]
+                    ]
+                , testGroup "splitAt"
+                    [ testStdlib (Just "splitAt 2 []")      "splitAt 2 []"                   (splitAt 2 ([] :: [()]))
+                    , testStdlib (Just "splitAt 0 [0]")     "splitAt 0 (: 0 [])"             (splitAt 0 [0::Int])
+                    , testStdlib (Just "splitAt 2 [0]")     "splitAt 2 (: 0 [])"             (splitAt 2 [0::Int])
+                    , testStdlib (Just "splitAt 2 [0,1,2]") "splitAt 2 (: 0 (: 1 (: 2 [])))" (splitAt 2 [0,1,2::Int])
                     ]
                 , testStdlib Nothing "filter (!= 1) (: 0 (: 1 (: 2 [])))" (filter (/= 1) [0,1,2 :: Int])
                 , testStdlib (Just "takeWhile (3 <= x) [0..]") "takeWhile (λx. <= x 3) (iterate (+ 1) 0)" (takeWhile (<= 3) [0::Int ..])
+                , testStdlib (Just "partition (!= 1) [1,2,1,3]") "partition (!= 1) (: 1 (:  2 (: 1 (: 3 []))))" (partition (/= 1) [1,2,1,3::Int])
                 ]
             ]
         ]
