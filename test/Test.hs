@@ -202,7 +202,11 @@ tests = testGroup "Lambda SKI testsuite"
                     , testStdlibQC "succ" "succ"    succ                    nat
                     , testStdlibQC "pred" "pred"    (\x -> max 0 (pred x))  nat
                     , testStdlibQC "*"    "λx. x *" (uncurry (*))           (liftA2 (,) nat nat)
-                    , testStdlibQC "^"    "λx. x ^" (uncurry (^))           (do Positive b <- resize 4 arbitrary; Positive e <- resize 3 arbitrary; pure ((b,e) :: (Int, Int)))
+                    , testStdlibQC
+                        "^"
+                        "λx. x ^"
+                        (uncurry (^))
+                        (resize 3 (do (Positive b, Positive e) <- arbitrary; pure ((b,e) :: (Int, Int))))
                     ]
                 , testGroup "Numbers"
                     [ testGroup "Digits"
@@ -217,7 +221,7 @@ tests = testGroup "Lambda SKI testsuite"
                     , testStdlibQC ">=" "λx. x >=" (uncurry (>=)) (liftA2 (,) nat nat)
                     ]
                 , testStdlibQC "even" "even" even nat
-                , testStdlibQC "odd" "odd" odd nat
+                , testStdlibQC "odd"  "odd"  odd  nat
                 ]
             , testGroup "Pairs"
                 [ testStdlib Nothing "fst (pair a b)" (FreeVar "a")
