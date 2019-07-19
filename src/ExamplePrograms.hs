@@ -169,13 +169,13 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
     (let (λf. Y (λ rec x. : x (rec (f x))))                                              (λ iterate.
     (let (compose Y :)                                                                   (λ repeat.
     (let (λ f. Y (λ rec x. let (f x) (λ fx. isJust fx (: (fst x) (rec (snd x))) [])))    (λ unfoldr.
-    (let (λ n list. foldr (λ x xs k. ==0 k x (xs (- k 1))) ERROR list n)                 (λ index.
-    (let (λ n list. foldr (λ x xs k. ==0 k [] (: x (xs (- k 1)))) (const []) list n)     (λ take.
-    (let (Y (λ rec n list. or (==0 n) (null list) list (rec (- n 1) (tail list))))       (λ drop.
+    (let (λ n list. foldr (λ x xs k. ==0 k x (xs (pred k))) ERROR list n)                (λ index.
+    (let (λ n list. foldr (λ x xs k. ==0 k [] (: x (xs (pred k)))) (const []) list n)    (λ take.
+    (let (Y (λ rec n list. or (==0 n) (null list) list (rec (pred n) (tail list))))      (λ drop.
     (let (Y (λ rec n list.
         or (==0 n) (null list)
             (pair [] list)
-            (let (rec (- n 1) (tail list)) (λ rest.
+            (let (rec (pred n) (tail list)) (λ rest.
                 pair (: (head list) (fst rest)) (snd rest)))))                           (λ splitAt.
     (let (λ p. foldr (λ x xs. p x (: x) id xs) [])                                       (λ filter.
     (let (λ p. foldr (λ x xs. p x (: x xs) []) Nil)                                      (λ takeWhile.
@@ -196,7 +196,7 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
                  1
              (==0 n
                  m
-                 (rec m (rec m (- n 1) p) (- p 1)))))))
+                 (rec m (rec m (pred n) p) (pred p)))))))
         (λ ackermann-phi.
 
     PROGRAM
