@@ -5,7 +5,7 @@ module Ski (
     Expr(..),
     prettyAnsi,
     normalForm,
-    weakHeadNormalForm,
+    headNormalForm,
     evalTo,
     removeAuxiliarySymbols,
     parse,
@@ -129,8 +129,8 @@ newtype Reduction = Reduce { reduceArgs :: Bool }
 normalForm :: Reduction
 normalForm = Reduce { reduceArgs = True }
 
-weakHeadNormalForm :: Reduction
-weakHeadNormalForm = Reduce { reduceArgs = False }
+headNormalForm :: Reduction
+headNormalForm = Reduce { reduceArgs = False }
 
 evalTo :: Reduction -> Expr -> Expr
 evalTo form = go
