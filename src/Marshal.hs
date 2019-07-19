@@ -58,8 +58,8 @@ instance (ToNominal a, ToNominal b) => ToNominal (Either a b) where
     toNominal (Right r) = toNominal ("λ Right x. Right x" :: N.Expr, toNominal r)
 
 instance ToNominal a => ToNominal [a] where
-    toNominal [] = "λ _nil x. x"
-    toNominal (x:xs) = toNominal (x, xs)
+    toNominal [] = "λ n _c. n"
+    toNominal (x:xs) = N.EApp (N.EApp "λ x list. λ _n c. c x list" (toNominal x)) (toNominal xs)
 
 absN :: [N.Var] -> N.Expr -> N.Expr
 absN = foldr (\x xs -> N.EAbs x . xs) id
@@ -94,8 +94,8 @@ deBruijnNat (B.EAbs (B.EAbs n)) = countApps 0 n
 deBruijnNat _ = Nothing
 
 instance FromDeBruijn a => FromDeBruijn [a] where
-    fromDeBruijn (B.EAbs (B.EAbs (B.EVar 0 _))) = Just []
-    fromDeBruijn (B.EAbs (B.EApp (B.EApp (B.EVar 0 _) x) xs)) = liftA2 (:) (fromDeBruijn x) (fromDeBruijn xs)
+    fromDeBruijn (B.EAbs (B.EAbs (B.EVar 1 _))) = Just []
+    fromDeBruijn (B.EAbs (B.EAbs (B.EApp (B.EApp (B.EVar 0 _) x) xs))) = liftA2 (:) (fromDeBruijn x) (fromDeBruijn xs)
     fromDeBruijn _ = Nothing
 
 instance FromDeBruijn () where

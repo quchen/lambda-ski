@@ -154,11 +154,11 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
     (let (maybe (const True) False) (λ isJust.
     (let (maybe (const False) True) (λ isNothing.
 
-    (let False                                                                           (λ [].
-    (let pair                                                                            (λ :.
-    (let (λ list. list (λ _head _tail _. False) True)                                    (λ null.
-    (let fst                                                                             (λ head.
-    (let snd                                                                             (λ tail.
+    (let (λ n _c. n)                                                                     (λ [].
+    (let (λ x list. λ _n c. c x list)                                                    (λ :.
+    (let (λ list. list True (λ _ _. False))                                              (λ null.
+    (let (λ list. list ERROR (λ x _xs. x))                                               (λ head.
+    (let (λ list. list ERROR (λ _x xs. xs))                                              (λ tail.
     (let (λ f z. (Y (λ rec list. null list z (f (head list) (rec (tail list))))))        (λ foldr.
     (let (λ f z list. foldr (λ x xs acc. xs (f acc x)) id list z)                        (λ foldl.
     (let (λ f. foldr (compose : f) [])                                                   (λ map.
