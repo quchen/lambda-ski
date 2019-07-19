@@ -19,10 +19,7 @@ factorial = stdlib [nominal|
 
 fibonacci :: N.Expr
 fibonacci = stdlib [nominal|
-    Y (λrec n. (<= n 1)
-               n
-               (+ (rec (- n 1))
-                  (rec (- n 2))))
+    λn. index n (Y (λ rec. : 0 (: 1 (zipWith + rec (tail rec)))))
     |]
 
 helloWorld :: N.Expr
