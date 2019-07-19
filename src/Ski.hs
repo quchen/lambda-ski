@@ -5,6 +5,8 @@ module Ski (
     Expr(..),
     prettyAnsi,
     normalForm,
+    weakHeadNormalForm,
+    evalTo,
     removeAuxiliarySymbols,
     parse,
     unsafeParse
@@ -122,20 +124,34 @@ removeAuxiliarySymbols C = "S (S (K (S (K S) K)) S) (K K)"
 removeAuxiliarySymbols free@EFree{} = free
 removeAuxiliarySymbols (EApp a b) = EApp (removeAuxiliarySymbols a) (removeAuxiliarySymbols b)
 
-normalForm :: Expr -> Expr
-normalForm (EApp e x) = case normalForm e of
-    I                   -> normalForm x
-    EApp K y            -> normalForm y
-    S `EApp` f `EApp` g -> normalForm (f `EApp` x `EApp` (g `EApp` x))
-    B `EApp` f `EApp` g -> normalForm (f `EApp` (g `EApp` x))
-    C `EApp` f `EApp` y -> normalForm (f `EApp` x `EApp` y)
-    other               -> EApp other (normalForm x)
-normalForm free@EFree{} = free
-normalForm S = S
-normalForm K = K
-normalForm I = I
-normalForm B = B
-normalForm C = C
+newtype Reduction = Reduce { reduceArgs :: Bool }
+
+normalForm :: Reduction
+normalForm = Reduce { reduceArgs = True }
+
+weakHeadNormalForm :: Reduction
+weakHeadNormalForm = Reduce { reduceArgs = False }
+
+evalTo :: Reduction -> Expr -> Expr
+evalTo form = go
+  where
+    nf = reduceArgs form
+
+    go :: Expr -> Expr
+    go (EApp e x) = case go e of
+        I                   -> go x
+        EApp K y            -> go y
+        S `EApp` f `EApp` g -> go (f `EApp` x `EApp` (g `EApp` x))
+        B `EApp` f `EApp` g -> go (f `EApp` (g `EApp` x))
+        C `EApp` f `EApp` y -> go (f `EApp` x `EApp` y)
+        other | nf          -> EApp other (go x)
+              | otherwise   -> EApp other x
+    go free@EFree{} = free
+    go S = S
+    go K = K
+    go I = I
+    go B = B
+    go C = C
 
 type Parser = Parsec Void Text
 

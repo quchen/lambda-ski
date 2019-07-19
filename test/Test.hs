@@ -295,19 +295,13 @@ tests = testGroup "Lambda SKI testsuite"
                 "(λf. (λx. f (x x)) (λx. f (x x))) (λ_. ok)"
                 "ok"
             , testReduceSkiViaNominal
+                (Just "1")
+                (stdlib [nominal| 1 |])
+                (toNominal (1 :: Int))
+            , testReduceSkiViaNominal
                 (Just "2 + 1")
-                [nominal|
-                    (λ+1 1 2.
-                        (λ+.
-                            + 2 1
-                        )
-                        (λm n. m +1 n)
-                    )
-                    (λn f x. f (n f x))
-                    (λf x. f x)
-                    (λf x. f (f x))
-                |]
-                (toNominal (3 :: Int))
+                (stdlib [nominal| + 2 1 |])
+                (toNominal (2 + 1 :: Int))
             ]
         , testGroup "Hello, world!"
             [ testHelloWorldNominal
@@ -339,21 +333,21 @@ testReduceDeBruijn :: Maybe TestName -> B.Expr -> B.Expr -> TestTree
 testReduceDeBruijn mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = Actual (evalTo B.normalForm input)
+    actual = Actual (B.evalTo B.normalForm input)
     test = assertEqual Nothing actual (Expected expected)
 
 testReduceNominalViaDeBruijn :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
 testReduceNominalViaDeBruijn mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = (Actual . deBruijnToNominal . evalTo B.normalForm . nominalToDeBruijn) input
+    actual = (Actual . deBruijnToNominal . B.evalTo B.normalForm . nominalToDeBruijn) input
     test = assertEqual Nothing actual (Expected expected)
 
 testStdlib :: ToNominal a => Maybe TestName -> N.Expr -> a -> TestTree
 testStdlib mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    eval = evalTo B.normalForm . nominalToDeBruijn . stdlib
+    eval = B.evalTo B.normalForm . nominalToDeBruijn . stdlib
     actual = Actual (eval input)
     expected' = Expected (eval (toNominal expected))
     test = assertEqual Nothing actual expected'
@@ -362,15 +356,15 @@ testReduceSki :: Maybe TestName -> S.Expr -> S.Expr -> TestTree
 testReduceSki mTestName input expected = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = Actual (S.normalForm input)
+    actual = Actual (S.evalTo S.normalForm input)
     test = assertEqual (Just (show input ++ " ⇝")) actual (Expected expected)
 
 testReduceSkiViaNominal :: Maybe TestName -> N.Expr -> N.Expr -> TestTree
 testReduceSkiViaNominal mTestName input expectedNominal = testCase testName test
   where
     testName = fromMaybe (show input) mTestName
-    actual = Actual (S.normalForm (nominalToSki True input))
-    expected = Expected (nominalToSki True expectedNominal)
+    actual = Actual (S.evalTo S.normalForm (nominalToSki True input))
+    expected = Expected (S.evalTo S.normalForm (nominalToSki True expectedNominal))
     test = assertEqual Nothing actual expected
 
 testHelloWorldNominal :: TestTree
@@ -378,7 +372,7 @@ testHelloWorldNominal = testCase "Lambda calculus version, old implementation" t
   where
     test = assertEqual Nothing actual expected
     expected = Expected "Hello, world!\n"
-    actual = (Actual . marshal . deBruijnToNominal . evalTo B.normalForm . nominalToDeBruijn) helloWorld
+    actual = (Actual . marshal . deBruijnToNominal . B.evalTo B.normalForm . nominalToDeBruijn) helloWorld
 
     marshal :: N.Expr -> String
     marshal (N.EAbs _ e) = marshal e
@@ -395,7 +389,7 @@ testHelloWorldSki = testCase "SKI calculus" test
   where
     test = assertEqual Nothing actual expected
     expected = Expected "Hello, world!\n"
-    actual = (Actual . marshal . S.normalForm . nominalToSki True) helloWorld
+    actual = (Actual . marshal . S.evalTo S.normalForm . nominalToSki True) helloWorld
 
     marshal :: S.Expr -> String
     marshal (S.EApp (S.EApp (S.EFree "extern_outChr") increments) cont)
@@ -424,7 +418,7 @@ testMarshalling
     -> TestTree
 testMarshalling testName gen = testProperty testName test
   where
-    test = forAll gen (\x -> (fromDeBruijn . evalTo B.normalForm . nominalToDeBruijn . toNominal) x == Just x)
+    test = forAll gen (\x -> (fromDeBruijn . B.evalTo B.normalForm . nominalToDeBruijn . toNominal) x == Just x)
 
 previewError :: String -> String
 previewError = dotdot 256 . T.unpack . T.unwords . map T.strip . T.lines . T.pack

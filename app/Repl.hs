@@ -29,7 +29,7 @@ main = runInputT defaultSettings (withInterrupt loop)
                     Left err -> outputStrLn ("Parse error: " ++ show err) >> loop
                     Right nominal -> do
                         let deBruijn = nominalToDeBruijn nominal
-                            evaluated = evalTo B.normalForm deBruijn
+                            evaluated = B.evalTo B.normalForm deBruijn
                             nominalAgain = deBruijnToNominal evaluated
 
                         outputStrLn "Nominal input"
@@ -46,7 +46,7 @@ main = runInputT defaultSettings (withInterrupt loop)
                         outputStrLn ""
                         outputStrLn "⇝ SKI"
                         outputStrLn "==========="
-                        outputStrLn ((toString . S.prettyAnsi) (S.normalForm (nominalToSki True nominal)))
+                        outputStrLn ((toString . S.prettyAnsi) (S.evalTo S.normalForm (nominalToSki True nominal)))
                         outputStrLn ""
                         outputStrLn "⇝ De Bruijn"
                         outputStrLn "==========="
