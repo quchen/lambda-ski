@@ -100,8 +100,6 @@ tests = testGroup "Lambda SKI testsuite"
             , testNominalToDeBruijnAndBack Nothing "λ_. free"
             , testNominalToDeBruijnAndBack Nothing "λbound. (λ_. free) bound free"
             , testNominalToDeBruijnAndBack (Just "Y") "λf. (λx. f (x x)) (λx. f (x x))"
-            , testNominalToDeBruijnAndBack (Just "factorial") factorial
-            , testNominalToDeBruijnAndBack (Just "Fibonacci") fibonacci
             ]
         ]
     , testGroup "Evaluation"
