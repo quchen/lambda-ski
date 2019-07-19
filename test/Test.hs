@@ -266,9 +266,9 @@ tests = testGroup "Lambda SKI testsuite"
                     , testStdlib (Just "splitAt 2 [0]")     "splitAt 2 (: 0 [])"             (splitAt 2 [0::Int])
                     , testStdlib (Just "splitAt 2 [0,1,2]") "splitAt 2 (: 0 (: 1 (: 2 [])))" (splitAt 2 [0,1,2::Int])
                     ]
-                , testStdlib Nothing "filter (!= 1) (: 0 (: 1 (: 2 [])))" (filter (/= 1) [0,1,2 :: Int])
+                , testStdlib (Just "filter (/= 1) [0,1,2]") "filter (!= 1) (: 0 (: 1 (: 2 [])))" (filter (/= 1) [0,1,2 :: Int])
                 , testStdlib (Just "takeWhile (3 <= x) [0..]") "takeWhile (λx. <= x 3) (iterate (+ 1) 0)" (takeWhile (<= 3) [0::Int ..])
-                , testStdlib (Just "partition (!= 1) [1,2,1,3]") "partition (!= 1) (: 1 (:  2 (: 1 (: 3 []))))" (partition (/= 1) [1,2,1,3::Int])
+                , testStdlib (Just "partition (<= 2) [1,2,1,3]") "partition (λx. <= x 2) (: 1 (:  2 (: 1 (: 3 []))))" (partition (<= 2) [1,2,1,3::Int])
                 ]
             ]
         ]
