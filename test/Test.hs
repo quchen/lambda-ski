@@ -7,6 +7,7 @@ module Main (main) where
 
 import           Data.Maybe
 import           Data.List
+import           Control.Applicative
 import           Data.Text             (Text)
 import qualified Data.Text             as T
 import           Test.Tasty
@@ -181,55 +182,49 @@ tests = testGroup "Lambda SKI testsuite"
                 NonNegative n' <- arbitrary
                 pure (n,b,n') :: Gen (Int, Bool,Int))
             ]
-        , localOption (Timeout 1000000 "1 second") $ testGroup "stdlib"
+        , localOption (QuickCheckMaxSize 10) $ localOption (Timeout 10000000 "10 seconds") $ testGroup "stdlib"
             [ testStdlib (Just "let") "let (λ x. x) (λ identity. identity x)" (FreeVar "x")
             , testGroup "functions"
                 [ testStdlib Nothing "id x" (FreeVar "x")
                 , testStdlib Nothing "const x y" (FreeVar "x")
                 ]
             , testGroup "Booleans"
-                [ testStdlib Nothing "True x y" (FreeVar "x")
+                [ testStdlib Nothing "True x y"  (FreeVar "x")
                 , testStdlib Nothing "False x y" (FreeVar "y")
-                , testStdlib Nothing "not False" True
-                , testStdlib Nothing "not True" False
-                , testStdlib Nothing "and True False" False
-                , testStdlib Nothing "and True True" True
-                , testStdlib Nothing "or False True" True
-                , testStdlib Nothing "or False False" False
+                , testStdlibQC "not" "not"       not            arbitrary
+                , testStdlibQC "and" "λx. x and" (uncurry (&&)) arbitrary
+                , testStdlibQC "or" "λx. x or"   (uncurry (||)) arbitrary
                 ]
             , testGroup "Naturals"
                 [ testGroup "Arithmetic"
-                    [ testStdlib Nothing "+ 1 2" (3 :: Int)
-                    , testStdlib Nothing "- 3 2" (1 :: Int)
-                    , testStdlib Nothing "pred 3" (2 :: Int)
-                    , testStdlib Nothing "succ 2" (3 :: Int)
-                    , testStdlib Nothing "* 2 3" (6 :: Int)
-                    , testStdlib Nothing "^ 2 3" (8 :: Int)
+                    [ testStdlibQC "+"    "λx. x +" (uncurry (+))           (liftA2 (,) nat nat)
+                    , testStdlibQC "-"    "λx. x -" (\(a,b) -> max 0 (a-b)) (liftA2 (,) nat nat)
+                    , testStdlibQC "succ" "succ"    succ                    nat
+                    , testStdlibQC "pred" "pred"    (\x -> max 0 (pred x))  nat
+                    , testStdlibQC "*"    "λx. x *" (uncurry (*))           (liftA2 (,) nat nat)
+                    , testStdlibQC "^"    "λx. x ^" (uncurry (^))           (do Positive b <- resize 4 arbitrary; Positive e <- resize 3 arbitrary; pure ((b,e) :: (Int, Int)))
                     ]
                 , testGroup "Numbers"
                     [ testGroup "Digits"
                         [ testStdlib Nothing (N.unsafeParse (showT n)) n | n <- [0..9::Int] ]
                     ]
                 , testGroup "Eq/Ord"
-                    [ testStdlib Nothing "== 1 1" True
-                    , testStdlib Nothing "!= 1 2" True
-                    , testStdlib Nothing "< 1 2" True
-                    , testStdlib Nothing "> 1 2" False
-                    , testStdlib Nothing "<= 1 2" True
-                    , testStdlib Nothing ">= 1 2" False
+                    [ testStdlibQC "==" "λx. x ==" (uncurry (==)) (liftA2 (,) nat nat)
+                    , testStdlibQC "!=" "λx. x !=" (uncurry (/=)) (liftA2 (,) nat nat)
+                    , testStdlibQC "<"  "λx. x <"  (uncurry (<))  (liftA2 (,) nat nat)
+                    , testStdlibQC ">"  "λx. x >"  (uncurry (>))  (liftA2 (,) nat nat)
+                    , testStdlibQC "<=" "λx. x <=" (uncurry (<=)) (liftA2 (,) nat nat)
+                    , testStdlibQC ">=" "λx. x >=" (uncurry (>=)) (liftA2 (,) nat nat)
                     ]
-                , testStdlib Nothing "even 2" (even (2::Int))
-                , testStdlib Nothing "odd 2" (odd (2::Int))
+                , testStdlibQC "even" "even" even nat
+                , testStdlibQC "odd" "odd" odd nat
                 ]
             , testGroup "Pairs"
                 [ testStdlib Nothing "fst (pair a b)" (FreeVar "a")
                 , testStdlib Nothing "snd (pair a b)" (FreeVar "b")
                 ]
             , testGroup "Lists"
-                [ testGroup "null"
-                    [ testStdlib Nothing "null []" True
-                    , testStdlib Nothing "null (: a b)" False
-                    ]
+                [ testStdlibQC "null" "null" null (listOf nat)
                 , testStdlib Nothing "head (: a b)" (FreeVar "a")
                 , testStdlib Nothing "tail (: a b)" (FreeVar "b")
                 , testStdlib (Just "map (1+) [1,2]") "map (+ 1) (: 1 (: 2 []))" [2, 3 :: Int]
@@ -309,6 +304,11 @@ tests = testGroup "Lambda SKI testsuite"
             ]
     ]
 
+nat :: Gen Int
+nat = do
+    NonNegative x <- arbitrary
+    pure x
+
 testParseDeBruijn :: Maybe TestName -> Text -> B.Expr -> TestTree
 testParseDeBruijn mTestName input expected = testCase testName test
   where
@@ -351,6 +351,21 @@ testStdlib mTestName input expected = testCase testName test
     actual = Actual (eval input)
     expected' = Expected (eval (toNominal expected))
     test = assertEqual Nothing actual expected'
+
+testStdlibQC
+    :: (Show input, Arbitrary input, Eq output, FromDeBruijn output, ToNominal input)
+    => TestName
+    -> N.Expr
+    -> (input -> output)
+    -> Gen input
+    -> TestTree
+testStdlibQC testName lcInput haskellReferenceImplementation gen = testProperty testName test
+  where
+    eval = B.evalTo B.normalForm . nominalToDeBruijn . stdlib
+    test = forAllShrink gen shrink $ \x ->
+        let actual = fromDeBruijn (eval (N.EApp lcInput (toNominal x)))
+            expected = Just (haskellReferenceImplementation x)
+        in actual == expected
 
 testReduceSki :: Maybe TestName -> S.Expr -> S.Expr -> TestTree
 testReduceSki mTestName input expected = testCase testName test
