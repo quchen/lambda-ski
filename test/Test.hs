@@ -208,6 +208,10 @@ tests = testGroup "Lambda SKI testsuite"
                     , testStdlib Nothing "* 2 3" (6 :: Int)
                     , testStdlib Nothing "^ 2 3" (8 :: Int)
                     ]
+                , testGroup "Numbers"
+                    [ testGroup "Digits"
+                        [ testStdlib Nothing (N.unsafeParse (showT n)) n | n <- [0..9::Int] ]
+                    ]
                 , testGroup "Eq/Ord"
                     [ testStdlib Nothing "== 1 1" True
                     , testStdlib Nothing "!= 1 2" True

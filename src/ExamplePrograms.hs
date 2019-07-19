@@ -110,17 +110,17 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
     (let (λm n f x. m (n f) x)                       (λ *.
     (let (λm n. n m)                                 (λ ^.
 
-    (let (λ _ x. x)                   (λ 0.
-    (let (succ 0)                     (λ 1.
-    (let (succ 1)                     (λ 2.
-    (let (succ 2)                     (λ 3.
-    (let (succ 3)                     (λ 4.
-    (let (succ 4)                     (λ 5.
-    (let (succ 5)                     (λ 6.
-    (let (succ 6)                     (λ 7.
-    (let (succ 7)                     (λ 8.
-    (let (succ 8)                     (λ 9.
-    (let (λn rest. (* rest 10) + n))) (λ d.
+    (let (λ _ x. x)                  (λ 0.
+    (let (succ 0)                    (λ 1.
+    (let (succ 1)                    (λ 2.
+    (let (succ 2)                    (λ 3.
+    (let (succ 3)                    (λ 4.
+    (let (succ 4)                    (λ 5.
+    (let (succ 5)                    (λ 6.
+    (let (succ 6)                    (λ 7.
+    (let (succ 7)                    (λ 8.
+    (let (succ 8)                    (λ 9.
+    (let (λn rest. (* rest 10) + n)) (λ d.
 
     (let (λn. n (λ_. False) True)                       (λ ==0.
     (let (λ a b. and (==0 (- a b)) (==0 (- b a)))       (λ ==.
@@ -133,7 +133,7 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
     (let (λ f. (λ x. x x) (λ x. f (x x))) (λ Y.
 
     (let (λ n. n not True)  (λ even.
-    (let (compose not even) (λ odd.
+    (let (λ n. n not False) (λ odd.
 
     (let (λ a b p. p a b) (λ pair.
     (let (λ p. p True)    (λ fst.
@@ -156,7 +156,7 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
 
     (let False                                                                           (λ [].
     (let pair                                                                            (λ :.
-    (let (λ list. list (λ _ _ _. False) True)                                            (λ null.
+    (let (λ list. list (λ _head _tail _. False) True)                                    (λ null.
     (let fst                                                                             (λ head.
     (let snd                                                                             (λ tail.
     (let (λ f z. (Y (λ rec list. null list z (f (head list) (rec (tail list))))))        (λ foldr.
@@ -168,6 +168,7 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
     (let (zipWith pair)                                                                  (λ zip.
     (let (λf. Y (λ rec x. : x (rec (f x))))                                              (λ iterate.
     (let (compose Y :)                                                                   (λ repeat.
+    (let (λ f. Y (λ rec x. let (f x) (λ fx. isJust fx (: (fst x) (rec (snd x))) [])))    (λ unfoldr.
     (let (λ n list. foldr (λ x xs k. ==0 k x (xs (- k 1))) ERROR list n)                 (λ index.
     (let (λ n list. foldr (λ x xs k. ==0 k [] (: x (xs (- k 1)))) (const []) list n)     (λ take.
     (let (Y (λ rec n list. or (==0 n) (null list) list (rec (- n 1) (tail list))))       (λ drop.
@@ -200,6 +201,6 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
 
     PROGRAM
 
-    ))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+    )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
     ) (λ value body. body value)
     |]
