@@ -110,10 +110,7 @@ parenthesize p x
     | p = parens x
     | otherwise = x
 
-data Reduction = Reduce
-    { reduceArgs :: Bool
-    , reduceAbstractions :: Bool
-    }
+data Reduction = Reduce { reduceArgs :: Bool, reduceAbstractions :: Bool }
 
 normalForm :: Reduction
 normalForm = Reduce { reduceArgs = True, reduceAbstractions = True }
@@ -128,15 +125,20 @@ weakHeadNormalForm :: Reduction
 weakHeadNormalForm = Reduce { reduceArgs = False, reduceAbstractions = False }
 
 evalTo :: Reduction -> Expr -> Expr
-evalTo r (EApp f x) = case evalTo r f of
-    EAbs body -> evalTo r (shift (-1) 0 (subst 0 (shift 1 0 x) body))
-    f' | reduceArgs r -> EApp f' (evalTo r x)
-       | otherwise    -> EApp f' x
-evalTo r eAbs@(EAbs e)
-    | reduceAbstractions r = EAbs (evalTo r e)
-    | otherwise            = eAbs
-evalTo _ var@EVar{} = var
-evalTo _ var@EVarFree{} = var
+evalTo reduction = go
+  where
+    hnf = reduceArgs reduction
+    wnf = reduceAbstractions reduction
+
+    go (EApp f x) = case go f of
+        EAbs body      -> go (shift (-1) 0 (subst 0 (shift 1 0 x) body))
+        f' | wnf       -> EApp f' (go x)
+           | otherwise -> EApp f' x
+    go eAbs@(EAbs e)
+        | hnf       = EAbs (go e)
+        | otherwise = eAbs
+    go var@EVar{} = var
+    go var@EVarFree{} = var
 
 shift
     :: Integer -- ^ Shift amount
