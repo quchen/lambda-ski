@@ -418,7 +418,7 @@ testMarshalling
     -> TestTree
 testMarshalling testName gen = testProperty testName test
   where
-    test = forAll gen (\x -> (fromDeBruijn . B.evalTo B.normalForm . nominalToDeBruijn . toNominal) x == Just x)
+    test = forAllShrink gen shrink (\x -> (fromDeBruijn . B.evalTo B.normalForm . nominalToDeBruijn . toNominal) x == Just x)
 
 previewError :: String -> String
 previewError = dotdot 256 . T.unpack . T.unwords . map T.strip . T.lines . T.pack
