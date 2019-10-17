@@ -227,11 +227,26 @@ tests = testGroup "Lambda SKI testsuite"
                 [ testStdlib Nothing "fst (pair a b)" (FreeVar "a")
                 , testStdlib Nothing "snd (pair a b)" (FreeVar "b")
                 ]
+            , testGroup "Either"
+                [ testStdlib Nothing "isLeft (Left x)" True
+                , testStdlib Nothing "isLeft (Right x)" False
+                , testStdlib Nothing "fromLeft (Left x)" (FreeVar "x")
+                , testStdlib Nothing "isRight (Left x)" False
+                , testStdlib Nothing "isRight (Right x)" True
+                , testStdlib Nothing "fromRight (Right x)" (FreeVar "x")
+                ]
+            , testGroup "Maybe"
+                [ testStdlib Nothing "isNothing Nothing" True
+                , testStdlib Nothing "isJust (Just x)" True
+                , testStdlib Nothing "isJust Nothing" False
+                , testStdlib Nothing "fromJust (Just x)" (FreeVar "x")
+                ]
             , testGroup "Lists"
                 [ testStdlibQC "null" "null" null (listOf nat)
                 , testStdlib Nothing "head (: a b)" (FreeVar "a")
                 , testStdlib Nothing "tail (: a b)" (FreeVar "b")
                 , testStdlib (Just "map (1+) [1,2]") "map (+ 1) (: 1 (: 2 []))" [2, 3 :: Int]
+                , testStdlib (Just "mapMaybe id [Just 1, Nothing, Just 2]") "mapMaybe id (: (Just 1) (: Nothing (: (Just 3) [])))" [1, 3 :: Int]
                 , testStdlib (Just "[1] ++ [2,3]") "++ (: 1 []) (: 2 (: 3 []))" [1, 2, 3 :: Int]
                 , testGroup "zip"
                     [ testStdlib (Just "zipWith f [] ys")
@@ -267,7 +282,9 @@ tests = testGroup "Lambda SKI testsuite"
                     ]
                 , testStdlib (Just "filter (/= 1) [0,1,2]") "filter (!= 1) (: 0 (: 1 (: 2 [])))" (filter (/= 1) [0,1,2 :: Int])
                 , testStdlib (Just "takeWhile (3 <= x) [0..]") "takeWhile (λx. <= x 3) (iterate (+ 1) 0)" (takeWhile (<= 3) [0::Int ..])
+                , testStdlib (Just "take 3 (dropWhile (3 <= x) [0..])") "take 3 (dropWhile (λx. <= x 3) (iterate (+ 1) 0))" (take 3 (dropWhile (<= 3) [0::Int ..]))
                 , testStdlib (Just "partition (<= 2) [1,2,1,3]") "partition (λx. <= x 2) (: 1 (:  2 (: 1 (: 3 []))))" (partition (<= 2) [1,2,1,3::Int])
+                , testStdlib (Just "unzip [(1,2), (2,3), (3,4)]") "unzip (: (pair 1 2) (: (pair 2 3) (: (pair 3 4) [])))" (unzip [(1,2), (2,3), (3::Int,4::Int)])
                 ]
             ]
         ]

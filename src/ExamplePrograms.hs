@@ -65,11 +65,11 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
 
     (let (λ {}. {}) (λ {}.
 
-    (let (λ t _. t)          (λ True.
-    (let (λ _ f. f)          (λ False.
-    (let (λ p. p False True) (λ not.
-    (let (λ p q. p q False)  (λ and.
-    (let (λ p q. p True q)   (λ or.
+    (let (λ t _. t)     (λ True.
+    (let (λ _ f. f)     (λ False.
+    (let flip           (λ not.
+    (let (λ p q. p q p) (λ and.
+    (let (λ p q. p p q) (λ or.
 
     (let (λn f x. f (n f x))                         (λ succ.
     (let (λa b. a succ b)                            (λ +.
@@ -103,57 +103,60 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
     (let (λ n. n not True)  (λ even.
     (let (λ n. n not False) (λ odd.
 
-    (let (λ a b p. p a b) (λ pair.
-    (let (λ p. p True)    (λ fst.
-    (let (λ p. p False)   (λ snd.
+    (let (λ a b p. p a b)                         (λ pair.
+    (let (λ f p. f (p (λ x _. x)) (p (λ _ y. y))) (λ uncurry.
+    (let (uncurry (λ f _. f))                     (λ fst.
+    (let (uncurry (λ _ s. s))                     (λ snd.
 
-    (let (pair False)                   (λ Left.
-    (let (pair True)                    (λ Right.
-    (let (λ l r e. (fst e) r l (snd e)) (λ either.
-    (let (compose not fst)              (λ isLeft.
-    (let fst                            (λ isRight.
-    (let (either ERROR id)              (λ fromRight.
-    (let (either id ERROR)              (λ fromLeft.
+    (let (λ x l _. l x)                      (λ Left.
+    (let (λ x _ r. r x)                      (λ Right.
+    (let (λ l r e. e l r)                    (λ either.
+    (let (either (const True) (const False)) (λ isLeft.
+    (let (compose not isLeft)                (λ isRight.
+    (let (either ERROR id)                   (λ fromRight.
+    (let (either id ERROR)                   (λ fromLeft.
 
-    (let Right                      (λ Just.
-    (let (Left {})                  (λ Nothing.
-    (let (compose either const)     (λ maybe.
-    (let (maybe id ERROR)           (λ fromJust.
-    (let (maybe (const True) False) (λ isJust.
-    (let (maybe (const False) True) (λ isNothing.
+    (let (λ x _ j. j x)             (λ Just.
+    (let (λ n _. n)                 (λ Nothing.
+    (let (λ n j x. x n j)           (λ maybe.
+    (let (maybe ERROR id)           (λ fromJust.
+    (let (maybe False (const True)) (λ isJust.
+    (let (maybe True (const False)) (λ isNothing.
 
-    (let (λ n _c. n)                                                                     (λ [].
-    (let (λ x list. λ _n c. c x list)                                                    (λ :.
-    (let (λ list. list True (λ _ _. False))                                              (λ null.
-    (let (λ list. list ERROR (λ x _xs. x))                                               (λ head.
-    (let (λ list. list ERROR (λ _x xs. xs))                                              (λ tail.
-    (let (λ f z. (Y (λ rec list. null list z (f (head list) (rec (tail list))))))        (λ foldr.
-    (let (λ f z list. foldr (λ x xs acc. xs (f acc x)) id list z)                        (λ foldl.
-    (let (λ f. foldr (compose : f) [])                                                   (λ map.
-    (let (λ f. foldr (λ x xs. (let (f x) (λ fx. isJust fx (: (fromJust fx) xs) xs) []))) (λ mapMaybe.
-    (let (λ xs ys. foldr : ys xs)                                                        (λ ++.
-    (let (λ f. (Y (λ rec xs ys. or (null xs) (null ys) [] (: (f (head xs) (head ys)) (rec (tail xs) (tail ys)))))) (λ zipWith.
-    (let (zipWith pair)                                                                  (λ zip.
-    (let (λf. Y (λ rec x. : x (rec (f x))))                                              (λ iterate.
-    (let (compose Y :)                                                                   (λ repeat.
-    (let (λ f. Y (λ rec x. let (f x) (λ fx. isJust fx (: (fst x) (rec (snd x))) [])))    (λ unfoldr.
-    (let (λ n list. foldr (λ x xs k. ==0 k x (xs (pred k))) ERROR list n)                (λ index.
-    (let (λ n list. foldr (λ x xs k. ==0 k [] (: x (xs (pred k)))) (const []) list n)    (λ take.
-    (let (Y (λ rec n list. or (==0 n) (null list) list (rec (pred n) (tail list))))      (λ drop.
+    (let (λ n _c. n)                                                                  (λ [].
+    (let (λ x xs _n c. c x xs)                                                        (λ :.
+    (let (λ z f list. list z (λ x xs. f x xs))                                        (λ case[].
+    (let (case[] True (λ _ _. False))                                                 (λ null.
+    (let (case[] ERROR (λ x _xs. x))                                                  (λ head.
+    (let (case[] ERROR (λ _x xs. xs))                                                 (λ tail.
+    (let (λ f z. (Y (λ rec. case[] z (λ x xs. f x (rec xs)))))                        (λ foldr.
+    (let (λ f z list. foldr (λ x xs acc. xs (f acc x)) id list z)                     (λ foldl.
+    (let (λ f. foldr (compose : f) [])                                                (λ map.
+    (let (λ f. foldr (λ x xs. (maybe xs (λ fx. : fx xs) (f x))) [])                   (λ mapMaybe.
+    (let (λ xs ys. foldr : ys xs)                                                     (λ ++.
+    (let (λ f. (Y (λ rec xx yy. case[] [] (λ x xs. case[] [] (λ y ys. : (f x y) (rec xs ys)) yy) xx))) (λ zipWith.
+    (let (zipWith pair)                                                               (λ zip.
+    (let (foldr (pair [] []) (λ xy xys. uncurry (λ x y. uncurry (λ xs ys. pair (: x xs) (: y ys)) xys) xy)) (λ unzip.
+    (let (λf. Y (λ rec x. : x (rec (f x))))                                           (λ iterate.
+    (let (compose Y :)                                                                (λ repeat.
+    (let (λ f. Y (λ rec x. (maybe [] (λ x. uncurry (λ fs sn. : x fs (rec sn))))))     (λ unfoldr.
+    (let (λ n list. foldr (λ x xs k. ==0 k x (xs (pred k))) ERROR list n)             (λ index.
+    (let (λ n list. foldr (λ x xs k. ==0 k [] (: x (xs (pred k)))) (const []) list n) (λ take.
+    (let (Y (λ rec n list. or (==0 n) (null list) list (rec (pred n) (tail list))))   (λ drop.
     (let (Y (λ rec n list.
         or (==0 n) (null list)
             (pair [] list)
-            (let (rec (pred n) (tail list)) (λ rest.
-                pair (: (head list) (fst rest)) (snd rest)))))                           (λ splitAt.
-    (let (λ p. foldr (λ x xs. p x (: x) id xs) [])                                       (λ filter.
-    (let (λ p. foldr (λ x xs. p x (: x xs) []) Nil)                                      (λ takeWhile.
-    (let (λ p. Y (λ rec xs.
-        null xs
+            (let (rec (pred n) (tail list))
+                (uncurry (λ fs sn. pair (: (head list) fs) sn)))))                    (λ splitAt.
+    (let (λ p. foldr (λ x xs. p x (: x) id xs) [])                                    (λ filter.
+    (let (λ p. foldr (λ x xs. p x (: x xs) []) [])                                    (λ takeWhile.
+    (let (λ p. Y (λ rec list. case[] [] (λ x xs. p x (rec xs) list) list))            (λ dropWhile.
+    (let (λ p. Y (λ rec.
+        case[]
             (pair [] [])
-            (let (head xs) (λ x.
-                (let (rec (tail xs)) (λ rest.
-                    p x (pair (: x (fst rest)) (snd rest))
-                        (pair (fst rest) (: x (snd rest)))))))))                         (λ partition.
+            (λ x xs. uncurry (λ fs sn. p x (pair (: x fs) sn)
+                                           (pair fs (: x sn)))
+                             (rec xs))))                                              (λ partition.
 
     (let (λm. Y (λ rec n p.
              ==0 p
@@ -169,6 +172,6 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
 
     PROGRAM
 
-    )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+    )))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
     ) (λ value body. body value)
     |]
