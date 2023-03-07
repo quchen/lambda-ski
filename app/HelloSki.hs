@@ -196,7 +196,11 @@ javascript = vcat
         else ""
     , hang 4 ("hello = " <> skiToJs helloSki <> ";")
     , ""
-    , "process.stdout.write(hello (asc => rest => String.fromCharCode(asc) + rest) ('') (x => x+1) (0));"
+    , "printChar   = asc => rest => String.fromCharCode(asc) + rest;"
+    , "emptyString = '';"
+    , "succ        = x => x+1;"
+    , "zero        = 0;"
+    , "process.stdout.write(hello(printChar)(emptyString)(succ)(zero));"
     ]
   where
     skiToJs :: S.Expr -> Doc ann
