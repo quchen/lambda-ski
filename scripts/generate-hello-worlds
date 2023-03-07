@@ -15,7 +15,7 @@ run() {
 }
 
 stack build
+run "Javascript: " "javascript" hello.js
 run "Python 3:   " "python3"    hello.py
 run "Ruby:       " "ruby"       hello.rb
-run "Javascript: " "javascript" hello.js
 run "Haskell:    " "haskell"    hello.hs

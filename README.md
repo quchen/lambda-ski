@@ -15,7 +15,8 @@ Hello World. We can finally compile this lambda calculus version to a
 [SK][wikipedia-SK] based one, which is easy to evaluate in many practical
 langauges, such as not Java.
 
-You can view the generated Hello Worlds in the helloworld subdirectory.
+You can view the generated Hello Worlds in the `helloworld` subdirectory, or
+generate them yourself by running `scripts/generate-hello-worlds`.
 
 [deBruijn]: https://en.wikipedia.org/wiki/De_Bruijn_index
 [wikipedia-SK]: https://en.wikipedia.org/wiki/SKI_combinator_calculus

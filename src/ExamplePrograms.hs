@@ -24,34 +24,34 @@ fibonacci = stdlib [nominal|
 
 helloWorld :: N.Expr
 helloWorld = [nominal|
-    (λ 1 2 + ^.
-            (λ4 8 16 32 64 print.
-                (λ H e l o  , ␣ w r d ! newline.
-                     H (e (2 l (o (, (␣ (w (o (r (l (d (! (newline extern_eof))))))))))))
-                )
-                (print (+ 64 8))
-                (print (+ 1 (+ 4 (+ 32 64))))
-                (print (+ 4 (+ 8 (+ 32 64))))
-                (print (+ 1 (+ 2 (+ 4 (+ 8 (+ 32 64))))))
-                (print (+ 4 (+ 8 32)))
-                (print 32)
-                (print (+ 1 (+ 2 (+ 4 (+ 16 (+ 32 64))))))
-                (print (+ 2 (+ 16 (+ 32 64))))
-                (print (+ 4 (+ 32 64)))
-                (print (+ 1 32))
-                (print (+ 2 8))
-            )
-            (^ 2 2)
-            (^ 2 (+ 1 2))
-            (^ 2 (+ 2 2))
-            (^ 2 (+ 1 (+ 2 2)))
-            (^ 2 (+ 2 (+ 2 2)))
-            (λn. extern_outChr (n extern_succ extern_0))
-    )
-    (λx. x)
-    (λf x. f (f x))
-    (λa b f x. a f (b f x))
-    (λb e. e b)
+    (λ let.
+        let (λa b f x. a f (b f x)) (λ +.
+
+        let (λf x. f x) (λ 1.
+        let (+ 1 1)     (λ 2.
+        let (+ 2 2)     (λ 4.
+        let (+ 4 4)     (λ 8.
+        let (+ 8 8)     (λ 16.
+        let (+ 16 16)   (λ 32.
+        let (+ 32 32)   (λ 64.
+
+        let (λn. extern_outChr (n extern_succ extern_0)) (λ print.
+        let (print (+ 8 64))                             (λ H.
+        let (print (+ 1 (+ 4 (+ 32 64))))                (λ e.
+        let (print (+ 4 (+ 8 (+ 32 64))))                (λ l.
+        let (print (+ 1 (+ 2 (+ 4 (+ 8 (+ 32 64))))))    (λ o.
+        let (print (+ 4 (+ 8 32)))                       (λ ,.
+        let (print 32)                                   (λ ␣.
+        let (print (+ 1 (+ 2 (+ 4 (+ 16 (+ 32 64))))))   (λ w.
+        let (print (+ 2 (+ 16 (+ 32 64))))               (λ r.
+        let (print (+ 4 (+ 32 64)))                      (λ d.
+        let (print (+ 1 32))                             (λ !.
+        let (print (+ 2 8))                              (λ newline.
+
+        H (e (2 l (o (, (␣ (w (o (r (l (d (! (newline extern_eof))))))))))))
+
+    ))))))))))))))))))))
+    ) (λ value body. body value)
     |]
 
 stdlib :: N.Expr -> N.Expr
@@ -147,7 +147,7 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
         or (==0 n) (null list)
             (pair [] list)
             (let (rec (pred n) (tail list))
-                (uncurry (λ fs sn. pair (: (head list) fs) sn)))))                    (λ splitAt.
+                (uncurry (λ fs sn. pair (: (head list) fs) sn)))))                   (λ splitAt.
     let (λ p. foldr (λ x xs. p x (: x) id xs) [])                                    (λ filter.
     let (λ p. foldr (λ x xs. p x (: x xs) []) [])                                    (λ takeWhile.
     let (λ p. Y (λ rec list. case[] [] (λ x xs. p x (rec xs) list) list))            (λ dropWhile.
@@ -156,7 +156,7 @@ stdlib prog = define (Var "PROGRAM", prog) [nominal|
             (pair [] [])
             (λ x xs. uncurry (λ fs sn. p x (pair (: x fs) sn)
                                            (pair fs (: x sn)))
-                             (rec xs))))                                              (λ partition.
+                             (rec xs))))                                             (λ partition.
 
     let (λm. Y (λ rec n p.
              ==0 p

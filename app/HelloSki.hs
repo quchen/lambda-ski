@@ -93,6 +93,9 @@ haskell = vcat
     skiToHs (EFree name) = parens ("Free" <+> dquotes (pretty name))
     skiToHs (S.EApp e1 e2) = "App" <> group line <> parens (skiToHs e1) <> group line <> parens (skiToHs e2)
 
+-- Python has a maximum depth of 100 for its parser. The main difference of this
+-- compiler compared to Javascript is that we have to keep track of nesting depth,
+-- and extract subexpressions to circumvent this.
 python :: Doc ann
 python = vcat
     [ "#!/usr/bin/env python3"
@@ -146,7 +149,9 @@ python = vcat
                 let floatDefinition = hang 4 (tl_floatedOutName <> " = " <> floatBody)
                 tell [floatDefinition]
                 pure tl_floatedOutName
-        pure (hd <> group line' <> "(" <> group line' <> tl <> group line' <> ")")
+        pure (hd <> group pyLine <> "(" <> group pyLine <> tl <> group pyLine <> ")")
+
+    pyLine = flatAlt (" \\"<> hardline) mempty
 
     exprDepth :: S.Expr -> Int
     exprDepth (S.EApp f x) = max (exprDepth f) (1 + exprDepth x)
