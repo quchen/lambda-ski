@@ -19,8 +19,8 @@ main :: IO ()
 main = runInputT defaultSettings (withInterrupt loop)
   where
     loop :: InputT IO ()
-    loop = handle
-        (\Interrupt -> outputStrLn "^C" >> loop)
+    loop = handleInterrupt
+        (outputStrLn "^C" >> loop)
         (do
             input <- getInputLine "> "
             case input of
