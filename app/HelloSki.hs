@@ -8,8 +8,8 @@ import           Control.Monad
 import           Data.List                             hiding (group)
 import qualified Data.Map                              as M
 import qualified Data.Text.IO                          as T
-import           Data.Text.Prettyprint.Doc
-import           Data.Text.Prettyprint.Doc.Render.Text
+import           Prettyprinter
+import           Prettyprinter.Render.Text
 import           System.Environment
 
 import           Convert

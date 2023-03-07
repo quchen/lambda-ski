@@ -18,9 +18,9 @@ import           Data.Char
 import           Data.String
 import           Data.Text                                 (Text)
 import qualified Data.Text                                 as T
-import           Data.Text.Prettyprint.Doc
-import           Data.Text.Prettyprint.Doc.Render.String
-import           Data.Text.Prettyprint.Doc.Render.Terminal
+import           Prettyprinter
+import           Prettyprinter.Render.String
+import           Prettyprinter.Render.Terminal
 import           Data.Void
 import           Language.Haskell.TH.Lift                  (Lift (..))
 import           Text.Megaparsec                           (Parsec)
